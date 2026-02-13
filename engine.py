@@ -1,51 +1,26 @@
-from database import connect_db
+import database as db
 
 def get_rankings():
-    conn = connect_db()
-    cursor = conn.cursor()
-    
-    # Ranking de Pontos (3-1-0) - Agora processado puramente em SQL
-    query_pontos = """
-    SELECT j.nome, 
-           SUM(CASE 
-               WHEN (p.time = 'A' AND m.gols_a > m.gols_b) OR (p.time = 'B' AND m.gols_b > m.gols_a) THEN 3
-               WHEN m.gols_a = m.gols_b THEN 1
-               ELSE 0 END) as PTOS,
-           COUNT(p.id) as JOGOS,
-           SUM(p.gols_marcados) as GOLS
-    FROM participacoes p
-    JOIN partidas m ON p.partida_id = m.id
-    JOIN jogadores j ON p.jogador_id = j.id
-    GROUP BY j.nome ORDER BY PTOS DESC, GOLS DESC
+    conn = db.connect_db()
+    # Ranking Presença
+    query_presenca = """
+        SELECT j.nome, COUNT(p.rodada_id) as frequencia 
+        FROM jogadores j 
+        LEFT JOIN presencas p ON j.id = p.jogador_id 
+        GROUP BY j.nome 
+        ORDER BY frequencia DESC
     """
+    presenca = conn.execute(query_presenca).fetchall()
     
-    # Ranking de Goleiros
-    query_goleiros = """
-    SELECT j.nome, 
-           SUM(CASE WHEN p.time = 'A' THEN m.gols_b ELSE m.gols_a END) as SOFRIDOS,
-           COUNT(p.id) as JOGOS
-    FROM participacoes p
-    JOIN partidas m ON p.partida_id = m.id
-    JOIN jogadores j ON p.jogador_id = j.id
-    WHERE p.eh_goleiro = 1
-    GROUP BY j.nome
+    # Ranking Artilharia
+    query_gols = """
+        SELECT j.nome, SUM(g.quantidade) as total_gols 
+        FROM jogadores j 
+        LEFT JOIN gols g ON j.id = g.jogador_id 
+        GROUP BY j.nome 
+        ORDER BY total_gols DESC
     """
+    artilharia = conn.execute(query_gols).fetchall()
     
-    cursor.execute(query_pontos)
-    pontos = cursor.fetchall() # Retorna uma lista simples
-    
-    cursor.execute(query_goleiros)
-    goleiros_raw = cursor.fetchall()
-    
-    # Calcula a média manualmente (sem pandas)
-    goleiros = []
-    for g in goleiros_raw:
-        nome, sofridos, jogos = g
-        media = round(sofridos / jogos, 2) if jogos > 0 else 0
-        goleiros.append((nome, sofridos, jogos, media))
-    
-    # Ordena goleiros pela menor média
-    goleiros.sort(key=lambda x: x[3])
-
     conn.close()
-    return pontos, goleiros
+    return presenca, artilharia
