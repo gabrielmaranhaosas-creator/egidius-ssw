@@ -9,11 +9,13 @@ def connect_db():
 def create_tables():
     conn = connect_db()
     cursor = conn.cursor()
-    # Tabelas base
-    cursor.execute('CREATE TABLE IF NOT EXISTS jogadores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE NOT NULL, bio TEXT, foto_url TEXT)')
+    # Cadastro de Atletas
+    cursor.execute('CREATE TABLE IF NOT EXISTS jogadores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE NOT NULL)')
+    # Rodadas e Presenças (Para o Prêmio Presença)
     cursor.execute('CREATE TABLE IF NOT EXISTS rodadas (id INTEGER PRIMARY KEY AUTOINCREMENT, data DATE UNIQUE NOT NULL)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS presencas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, jogador_id INTEGER, ordem INTEGER, madrugador INTEGER DEFAULT 0)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, data_hora TEXT, gols_a INTEGER, gols_b INTEGER, juiz_id INTEGER, mesario_id INTEGER)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS participacoes (id INTEGER PRIMARY KEY AUTOINCREMENT, partida_id INTEGER, jogador_id INTEGER, time TEXT, eh_goleiro INTEGER DEFAULT 0, gols_marcados INTEGER DEFAULT 0, link_video TEXT)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS presencas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, jogador_id INTEGER, ordem INTEGER)')
+    # Partidas e Gols (Para a Artilharia)
+    cursor.execute('CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, data_hora TEXT)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS gols (id INTEGER PRIMARY KEY AUTOINCREMENT, partida_id INTEGER, jogador_id INTEGER, quantidade INTEGER, link_video TEXT)')
     conn.commit()
     conn.close()
