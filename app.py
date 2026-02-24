@@ -34,9 +34,9 @@ def get_base64_image(image_path):
 # --- 3. SETUP E DESIGN SISTÊMICO ---
 st.set_page_config(page_title="EGIDIUS - SSW", layout="wide")
 
-# Processa a imagem para o HTML (Garante que o arquivo logo.jpg exista na pasta)
-logo_base64 = get_base64_image("logo.jpg")
-img_html = f"<img src='data:image/jpeg;base64,{logo_base64}' style='width: 120px; vertical-align: middle; margin-right: 20px; border-radius: 50%;'>" if logo_base64 else ""
+# Processa a imagem PNG para o HTML
+logo_base64 = get_base64_image("logo.png")
+img_html = f"<img src='data:image/png;base64,{logo_base64}' style='width: 120px; vertical-align: middle; margin-right: 20px; border-radius: 50%;'>" if logo_base64 else ""
 
 st.markdown("""
     <style>
