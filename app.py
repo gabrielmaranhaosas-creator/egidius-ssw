@@ -2,11 +2,10 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 import database as db
-import engine
 import io
 
-# --- CONFIGURAÇÃO E DESIGN ---
-st.set_page_config(page_title="EGIDIUS - SSW", layout="wide")
+# --- DESIGN SYSTEM ---
+st.set_page_config(page_title="EGIDIUS - SSW", layout="wide", page_icon="🛡️")
 
 st.markdown("""
     <style>
@@ -14,129 +13,152 @@ st.markdown("""
     * { font-family: 'Montserrat', sans-serif; }
     .stApp { background-color: #FFFFFF; }
     .header-ssw {
-        background-color: #155724; padding: 40px; border-radius: 0 0 30px 30px;
+        background: linear-gradient(135deg, #155724 0%, #1e7e34 100%);
+        padding: 30px; border-radius: 0 0 30px 30px;
         color: white; text-align: center; border-bottom: 4px solid #B8860B;
+        margin-bottom: 25px;
     }
-    .stButton>button {
-        border-radius: 12px; height: 55px; font-weight: 700;
-        border: 2px solid #155724; color: #155724; background: white;
+    .match-box {
+        background-color: #f8f9fa; padding: 20px; border-radius: 15px;
+        border: 1px solid #e0e0e0; margin-bottom: 20px;
     }
-    .stButton>button:hover { background-color: #155724; color: white; }
+    .stButton>button { border-radius: 10px; font-weight: 700; }
     </style>
     """, unsafe_allow_html=True)
 
 db.create_tables()
 conn = db.connect_db()
 
-st.markdown("<div class='header-ssw'><h1>EGIDIUS - SSW</h1></div>", unsafe_allow_html=True)
+st.markdown("<div class='header-ssw'><h1>🛡️ EGIDIUS - SSW</h1></div>", unsafe_allow_html=True)
 
-# ORDEM DAS JANELAS
-menu = ["📍 Marcar Presença", "🎮 Súmula do Jogo", "🏆 Artilharia e Presença", "📖 Nossa História", "📥 Exportar Dados", "⚙️ CONFIG"]
+menu = ["📍 Presença", "🎮 Súmula dos Jogos", "🏆 Rankings", "📖 Nossa História", "📥 Exportar", "⚙️ CONFIG"]
 choice = st.sidebar.radio("MENU", menu)
 hoje_str = datetime.now().date().isoformat()
 
-# --- 1. MARCAR PRESENÇA ---
-if choice == "📍 Marcar Presença":
-    st.subheader("📋 Check-in: Ordem de Chegada")
+# --- 1. PRESENÇA ---
+if choice == "📍 Presença":
+    st.subheader("📋 Ordem de Chegada")
     conn.execute("INSERT OR IGNORE INTO rodadas (data) VALUES (?)", (hoje_str,))
     conn.commit()
-    rodada_id = conn.execute("SELECT id FROM rodadas WHERE data=?", (hoje_str,)).fetchone()[0]
+    res_r = conn.execute("SELECT id FROM rodadas WHERE data=?", (hoje_str,)).fetchone()
+    rodada_id = res_r[0]
     
     cursor = conn.cursor()
     cursor.execute("SELECT id, nome FROM jogadores ORDER BY nome")
     todos = cursor.fetchall()
-    cursor.execute("SELECT p.id, j.nome, p.ordem FROM presencas p JOIN jogadores j ON p.jogador_id = j.id WHERE p.rodada_id=?", (rodada_id,))
+    cursor.execute("SELECT p.id, j.nome, p.ordem FROM presencas p JOIN jogadores j ON p.jogador_id = j.id WHERE p.rodada_id=? ORDER BY p.ordem", (rodada_id,))
     presentes = cursor.fetchall()
-    pres_nomes = [p[1] for p in presentes]
-
-    col1, col2 = st.columns(2)
-    with col1:
+    
+    c1, c2 = st.columns(2)
+    with c1:
         st.write("#### Registrar Entrada")
+        pres_nomes = [p[1] for p in presentes]
         for j_id, j_nome in todos:
             if j_nome not in pres_nomes:
                 if st.button(f"➕ {j_nome}", key=f"in_{j_id}", use_container_width=True):
                     conn.execute("INSERT INTO presencas (rodada_id, jogador_id, ordem) VALUES (?,?,?)", (rodada_id, j_id, len(presentes)+1))
                     conn.commit()
                     st.rerun()
-    with col2:
-        st.write("#### Gerenciar / Remover")
+    with c2:
+        st.write("#### Lista de Hoje")
         for p_id, p_nome, p_ord in presentes:
             if st.button(f"❌ {p_nome} (#{p_ord})", key=f"out_{p_id}", use_container_width=True):
                 conn.execute("DELETE FROM presencas WHERE id=?", (p_id,))
                 conn.commit()
                 st.rerun()
 
-# --- 2. SÚMULA DO JOGO ---
-elif choice == "🎮 Súmula do Jogo":
-    st.subheader("⚽ Registro de Gols da Rodada")
+# --- 2. SÚMULA DOS JOGOS (TIME X TIME) ---
+elif choice == "🎮 Súmula dos Jogos":
+    st.subheader("⚽ Registro de Partidas")
     cursor = conn.cursor()
     cursor.execute("SELECT j.id, j.nome FROM jogadores j JOIN presencas p ON j.id = p.jogador_id JOIN rodadas r ON r.id = p.rodada_id WHERE r.data=?", (hoje_str,))
     atletas_hoje = cursor.fetchall()
-    
-    if not atletas_hoje:
-        st.info("Aguardando lista de presença.")
+    nomes = [a[1] for a in atletas_hoje]
+    id_map = {a[1]: a[0] for a in atletas_hoje}
+
+    if not nomes:
+        st.warning("Bata o ponto dos jogadores na aba Presença primeiro!")
     else:
-        with st.form("form_gols"):
-            atleta = st.selectbox("Quem marcou?", [a[1] for a in atletas_hoje])
-            qtd = st.number_input("Quantidade de Gols", 1, 10)
-            video = st.text_input("Link do Vídeo")
-            if st.form_submit_button("SALVAR GOL"):
-                j_id = [a[0] for a in atletas_hoje if a[1] == atleta][0]
-                conn.execute("INSERT INTO gols (jogador_id, quantidade, link_video, data_registro) VALUES (?,?,?,?)", (j_id, qtd, video, hoje_str))
-                conn.commit()
-                st.success(f"Golo de {atleta} registado!")
+        # Verifica quantos jogos já foram registrados hoje
+        rodada_id = conn.execute("SELECT id FROM rodadas WHERE data=?", (hoje_str,)).fetchone()[0]
+        jogos_existentes = conn.execute("SELECT COUNT(*) FROM partidas WHERE rodada_id=?", (rodada_id,)).fetchone()[0]
+        proximo_jogo = jogos_existentes + 1
 
-# --- 3. ARTILHARIA E PRESENÇA ---
-elif choice == "🏆 Artilharia e Presença":
+        with st.form("form_jogo"):
+            st.markdown(f"### 🏟️ JOGO Nº {proximo_jogo}")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown("**⚪ TIME BRANCO**")
+                time_a = st.multiselect("Jogadores Branco", nomes, key="ta")
+                gols_a = st.number_input("Gols Branco", 0, 20, key="ga")
+            with col_b:
+                st.markdown("**🟢 TIME COLORIDO**")
+                time_b = st.multiselect("Jogadores Colorido", nomes, key="tb")
+                gols_b = st.number_input("Gols Colorido", 0, 20, key="gb")
+            
+            st.divider()
+            st.write("#### 🎯 Artilheiros deste Jogo")
+            marcador = st.selectbox("Quem marcou?", [""] + nomes)
+            qtd_gols = st.number_input("Quantos gols ele fez neste jogo?", 1, 10)
+            video = st.text_input("Link do Replay")
+
+            if st.form_submit_button("FINALIZAR E GRAVAR JOGO"):
+                if time_a and time_b:
+                    # Cria a partida
+                    cursor.execute("INSERT INTO partidas (rodada_id, numero_jogo, time_a_gols, time_b_gols) VALUES (?,?,?,?)", 
+                                 (rodada_id, proximo_jogo, gols_a, gols_b))
+                    p_id = cursor.lastrowid
+                    
+                    # Registra quem jogou em cada time
+                    for n in time_a:
+                        g = qtd_gols if n == marcador else 0
+                        v = video if n == marcador else ""
+                        conn.execute("INSERT INTO participacoes (partida_id, jogador_id, time, gols, link_video) VALUES (?,?,?,?,?)", (p_id, id_map[n], 'A', g, v))
+                    for n in time_b:
+                        g = qtd_gols if n == marcador else 0
+                        v = video if n == marcador else ""
+                        conn.execute("INSERT INTO participacoes (partida_id, jogador_id, time, gols, link_video) VALUES (?,?,?,?,?)", (p_id, id_map[n], 'B', g, v))
+                    
+                    conn.commit()
+                    st.success(f"Jogo {proximo_jogo} gravado no banco de dados!")
+                    st.rerun()
+                else:
+                    st.error("Escala os dois times antes de gravar!")
+
+# --- 3. RANKINGS (ARTILHEIRO E PRESENÇA) ---
+elif choice == "🏆 Rankings":
     st.subheader("🏆 Melhores da Temporada")
-    pres, art = engine.get_rankings()
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### 🎯 Artilheiros")
-        for i, r in enumerate(art): st.write(f"**{i+1}º** {r[0]} — {r[1] if r[1] else 0} Gols")
-    with c2:
-        st.markdown("### 🥇 Presenças")
-        for i, r in enumerate(pres): st.write(f"**{i+1}º** {r[0]} — {r[1]} Rodadas")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 🎯 Artilheiro")
+        data = conn.execute("SELECT j.nome, SUM(p.gols) as total FROM participacoes p JOIN jogadores j ON p.jogador_id = j.id GROUP BY j.nome ORDER BY total DESC").fetchall()
+        for i, r in enumerate(data): st.write(f"**{i+1}º** {r[0]} — {r[1]} Gols")
+    with col2:
+        st.markdown("### 🥇 Presença")
+        data = conn.execute("SELECT j.nome, COUNT(DISTINCT r.id) FROM presencas p JOIN jogadores j ON p.jogador_id = j.id JOIN rodadas r ON p.rodada_id = r.id GROUP BY j.nome ORDER BY COUNT(r.id) DESC").fetchall()
+        for i, r in enumerate(data): st.write(f"**{i+1}º** {r[0]} — {r[1]} Sábados")
 
-# --- 4. NOSSA HISTÓRIA ---
-elif choice == "📖 Nossa História":
-    st.subheader("📜 Galeria e Memória SSW")
-    st.info("Espaço destinado à história dos fundadores, fotos e vídeos memoráveis.")
-
-# --- 5. EXPORTAR DADOS (CORRIGIDO) ---
-elif choice == "📥 Exportar Dados":
-    st.subheader("💾 Exportar para Excel")
-    if st.button("Gerar Relatório Excel"):
-        try:
-            df_gols = pd.read_sql_query("SELECT j.nome, SUM(g.quantidade) as Gols FROM gols g JOIN jogadores j ON g.jogador_id = j.id GROUP BY j.nome", conn)
-            df_pres = pd.read_sql_query("SELECT j.nome, COUNT(p.rodada_id) as Presencas FROM presencas p JOIN jogadores j ON p.jogador_id = j.id GROUP BY j.nome", conn)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_gols.to_excel(writer, sheet_name='Artilharia', index=False)
-                df_pres.to_excel(writer, sheet_name='Presencas', index=False)
-            
-            st.download_button(
-                label="📥 Baixar Relatório Completo",
-                data=output.getvalue(),
-                file_name=f"SSW_Relatorio_{datetime.now().strftime('%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        except Exception as e:
-            st.error(f"Erro ao exportar: {e}")
+# --- 5. EXPORTAR ---
+elif choice == "📥 Exportar":
+    st.subheader("💾 Exportar Banco de Dados")
+    if st.button("Gerar Excel"):
+        df = pd.read_sql_query("SELECT j.nome, SUM(p.gols) as Gols FROM participacoes p JOIN jogadores j ON p.jogador_id = j.id GROUP BY j.nome", conn)
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Geral', index=False)
+        st.download_button("📥 Baixar Excel", output.getvalue(), "Relatorio_SSW.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # --- 6. CONFIG ---
 elif choice == "⚙️ CONFIG":
     st.subheader("Configurações")
-    nome = st.text_input("Cadastrar Novo Atleta")
+    nome = st.text_input("Novo Atleta")
     if st.button("Salvar"):
         conn.execute("INSERT OR IGNORE INTO jogadores (nome) VALUES (?)", (nome,))
         conn.commit()
         st.rerun()
-    st.divider()
     if st.button("🚨 RESET TOTAL"):
-        conn.execute("DELETE FROM gols"); conn.execute("DELETE FROM presencas")
-        conn.execute("DELETE FROM rodadas"); conn.execute("DELETE FROM jogadores")
-        conn.commit(); st.error("Dados apagados.")
+        conn.execute("DELETE FROM participacoes"); conn.execute("DELETE FROM partidas")
+        conn.execute("DELETE FROM presencas"); conn.execute("DELETE FROM rodadas")
+        conn.execute("DELETE FROM jogadores"); conn.commit(); st.rerun()
 
 conn.close()

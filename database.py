@@ -11,10 +11,13 @@ def create_tables():
     cursor = conn.cursor()
     # Atletas
     cursor.execute('CREATE TABLE IF NOT EXISTS jogadores (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT UNIQUE NOT NULL)')
-    # Frequência
+    # Rodadas (Datas)
     cursor.execute('CREATE TABLE IF NOT EXISTS rodadas (id INTEGER PRIMARY KEY AUTOINCREMENT, data DATE UNIQUE NOT NULL)')
+    # Presenças
     cursor.execute('CREATE TABLE IF NOT EXISTS presencas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, jogador_id INTEGER, ordem INTEGER)')
-    # Gols
-    cursor.execute('CREATE TABLE IF NOT EXISTS gols (id INTEGER PRIMARY KEY AUTOINCREMENT, jogador_id INTEGER, quantidade INTEGER, link_video TEXT, data_registro TEXT)')
+    # Partidas Sequenciais (Jogo 1, Jogo 2...)
+    cursor.execute('CREATE TABLE IF NOT EXISTS partidas (id INTEGER PRIMARY KEY AUTOINCREMENT, rodada_id INTEGER, numero_jogo INTEGER, time_a_gols INTEGER DEFAULT 0, time_b_gols INTEGER DEFAULT 0)')
+    # Participações e Gols por Jogo
+    cursor.execute('CREATE TABLE IF NOT EXISTS participacoes (id INTEGER PRIMARY KEY AUTOINCREMENT, partida_id INTEGER, jogador_id INTEGER, time TEXT, gols INTEGER DEFAULT 0, link_video TEXT)')
     conn.commit()
     conn.close()
