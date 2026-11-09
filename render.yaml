@@ -5,7 +5,7 @@ services:
     plan: starter
     region: virginia
     numInstances: 1
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
