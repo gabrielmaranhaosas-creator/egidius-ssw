@@ -1,0 +1,92 @@
+name: Validar EGIDIUS
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - preparacao-render-20261109
+
+permissions:
+  contents: read
+
+concurrency:
+  group: egidius-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: API e preservacao dos dados
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: backend
+      EGIDIUS_DATABASE_URL: sqlite:///${{ runner.temp }}/egidius-ci.sqlite3
+      EGIDIUS_MEDIA_DIR: ${{ runner.temp }}/egidius-media
+      EGIDIUS_LOCAL_ACCESS: "true"
+      EGIDIUS_SECURE_COOKIES: "false"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.lock.txt
+      - name: Instalar dependencias verificadas
+        run: python -m pip install --require-hashes -r backend/requirements-dev.lock.txt
+      - name: Testar API, importacoes, backup e restauracao
+        run: python -m pytest backend/tests -q
+
+  frontend:
+    name: Interface e compilacao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Imagem e inicializacao de producao
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Construir imagem
+        run: docker build --tag egidius-ci:teste .
+      - name: Iniciar imagem com banco temporario de teste
+        run: >-
+          docker run --detach --name egidius-ci
+          --publish 127.0.0.1:18080:8080
+          --env EGIDIUS_DATABASE_URL=sqlite:////tmp/egidius-ci.sqlite3
+          egidius-ci:teste
+      - name: Conferir API e interface compilada
+        run: |
+          curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:18080/api/health
+          curl --fail --silent --show-error http://127.0.0.1:18080/ > /tmp/egidius-ci-index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path('/tmp/egidius-ci-index.html').read_text()
+          assert 'id="root"' in page
+          assert '/assets/' in page
+          print('Interface compilada respondendo na imagem Docker.')
+          PY
+      - name: Exibir logs em caso de falha
+        if: failure()
+        run: docker logs egidius-ci 2>/dev/null || true
+      - name: Encerrar apenas o container do teste
+        if: always()
+        run: docker rm --force egidius-ci 2>/dev/null || true
