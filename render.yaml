@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: egidius-ssw
+    runtime: docker
+    plan: starter
+    region: virginia
+    numInstances: 1
+    autoDeployTrigger: off
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    disk:
+      name: egidius-dados
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: EGIDIUS_REQUIRE_PERSISTENCE
+        value: "true"
+      - key: EGIDIUS_DATA_VOLUME
+        value: /var/data
+      - key: EGIDIUS_DATABASE_URL
+        value: sqlite:////var/data/egidius.sqlite3
+      - key: EGIDIUS_MEDIA_DIR
+        value: /var/data/media
+      - key: EGIDIUS_SECURE_COOKIES
+        value: "true"
+      - key: EGIDIUS_LOCAL_ACCESS
+        value: "false"
+      - key: EGIDIUS_PUBLIC_INVITE_TOKEN
+        generateValue: true
+      - key: EGIDIUS_INITIAL_DATABASE_B64
+        sync: false
+      - key: EGIDIUS_INITIAL_DATABASE_SHA256
+        sync: false

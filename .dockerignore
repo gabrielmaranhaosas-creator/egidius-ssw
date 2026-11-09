@@ -1,0 +1,17 @@
+.git
+.gitignore
+**/.DS_Store
+**/__pycache__
+**/.venv
+**/node_modules
+**/*.sqlite3
+**/*.sqlite3-shm
+**/*.sqlite3-wal
+backend/backups
+backend/var
+.egidius-backups
+dist
+.env
+.env.*
+*.zip
+*.log

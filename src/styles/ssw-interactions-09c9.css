@@ -1,0 +1,20 @@
+/* EGIDIUS 09C9 — interações claras para uso no celular. Mantém a identidade SSW. */
+.ssw09-undo-redo{display:flex;align-items:stretch;flex-wrap:wrap;gap:9px}
+.ssw09-undo-redo button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:115px;min-height:52px;padding:10px 14px;border-radius:13px;border:2px solid #b86e2d;background:#fff8e8;color:#492e20;font-size:17px;font-weight:850;cursor:pointer}
+.ssw09-undo-redo button:disabled{opacity:.47;cursor:not-allowed}
+.ssw09-dialog-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(25,16,10,.74);display:grid;align-items:center;justify-items:center;padding:18px}
+.ssw09-dialog{background:#fffaf0;border:3px solid #efba56;color:#32231b;border-radius:22px;padding:24px;max-width:480px;width:100%;box-shadow:0 25px 70px #0007}
+.ssw09-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ssw09-dialog h2{font-size:clamp(24px,5vw,32px);line-height:1.15;margin:0}
+.ssw09-dialog-description{font-size:18px;line-height:1.6;margin:16px 0 23px}
+.ssw09-dialog-close{background:transparent;border:0;min-height:48px;min-width:48px;display:grid;place-items:center;color:#3c2c22}
+.ssw09-dialog-buttons{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ssw09-dialog-buttons button{min-height:58px;border-radius:14px;padding:12px 10px;font-weight:850;font-size:17px;display:flex;gap:8px;align-items:center;justify-content:center;border:2px solid #805d3f}
+.ssw09-cancel{background:#fff0d5;color:#33231c}.ssw09-danger{background:#a92720!important;color:white!important;border-color:#a92720!important}.ssw09-primary{background:#d77922;color:#28170f}
+.ssw09-to-top{position:fixed;right:17px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:75;border:2px solid #ffe3a9;background:#42241b;color:#fff6e5;box-shadow:0 6px 18px #160a085c;border-radius:999px;min-height:52px;padding:10px 17px;display:flex;align-items:center;gap:7px;font-size:16px;font-weight:850;cursor:pointer;touch-action:manipulation}
+.ssw09-to-top:focus-visible,.ssw09-undo-redo button:focus-visible,.ssw09-dialog button:focus-visible{outline:3px solid #ac2e24;outline-offset:3px}
+@media(max-width:768px){.ssw09-to-top{bottom:calc(96px + env(safe-area-inset-bottom));right:13px}.ssw09-dialog{padding:19px}.ssw09-undo-redo{width:100%}.ssw09-undo-redo button{flex:1}}
+@media(max-width:370px){.ssw09-dialog-buttons{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.ssw09-to-top,.ssw09-dialog{animation:none;transition:none}}
+/* O novo botão global substitui o comando anterior de topo na Súmula Expressa. */
+.express-mobile-back{display:none!important}

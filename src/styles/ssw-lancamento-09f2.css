@@ -1,0 +1,29 @@
+/* EGIDIUS 09F2 — prioridade: ações claras, expansão previsível, leitura confortável. */
+.ssw-release-disclosure,.ssw-release-roster{margin:12px 0 20px;border:1px solid #d8a56f;border-radius:16px;background:#fff7ea;overflow:hidden;color:#38271e}
+.ssw-release-disclosure>summary,.ssw-release-roster>summary{min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;padding:13px 17px;font-weight:800;font-size:18px;cursor:pointer}
+.ssw-release-disclosure>summary::-webkit-details-marker,.ssw-release-roster>summary::-webkit-details-marker{display:none}
+.ssw-release-disclosure>summary>svg{flex:none;transition:transform .15s ease}
+.ssw-release-disclosure[open]>summary>svg{transform:rotate(90deg)}
+.ssw-release-roster>summary::before{content:'⌄';order:3;font-size:24px;transition:transform .15s ease}
+.ssw-release-roster[open]>summary::before{transform:rotate(180deg)}
+.ssw-release-roster>summary>span{margin-left:auto;border-radius:99px;background:#f9d694;padding:2px 10px;font-size:16px}
+.ssw-release-disclosure>.metrics-grid{padding:12px}
+.ssw-release-roster>.ssw-trip-progress,.ssw-release-roster>.ssw-trip-list,.ssw-release-roster>.ssw-trip-empty,.ssw-release-roster>.ssw-trip-goalie{margin:12px 16px}
+.main details>summary:focus-visible,.ssw-release-disclosure button:focus-visible{outline:3px solid #742e19;outline-offset:3px}
+.main details:not(.ssw-release-disclosure):not(.ssw-release-roster):not(.ssw-more-secondary)>summary{min-height:48px;cursor:pointer}
+.main details:not(.ssw-release-disclosure):not(.ssw-release-roster):not(.ssw-more-secondary)>summary::after{content:'⌄';float:right;font-size:23px;font-weight:800;color:#7c411d;line-height:1.1;margin-left:10px}
+.main details:not(.ssw-release-disclosure):not(.ssw-release-roster):not(.ssw-more-secondary)[open]>summary::after{content:'⌃'}
+@media(max-width:760px){
+  .ssw-release-disclosure>summary,.ssw-release-roster>summary{font-size:18px;min-height:58px}
+  .ssw-trip-hero{padding:17px!important}
+  .ssw-trip-hero-row{margin:8px 0 10px!important}
+  .ssw-trip-info>div{font-size:15px!important}
+  .ssw-trip-panel{padding:16px!important;margin-top:10px!important}
+  .ssw-trip-panel-head p{font-size:15px!important}
+  .ssw-back-to-top{bottom:calc(90px + env(safe-area-inset-bottom))!important}
+  .page{padding-bottom:90px}
+}
+@media(prefers-reduced-motion:reduce){.ssw-release-disclosure *, .ssw-release-roster *{transition:none!important;scroll-behavior:auto!important}}
+
+.ssw-release-registration>.roster-form,.ssw-release-registration>.quick-roster-manage,.ssw-release-registration>p{margin:12px 16px}
+.ssw-release-registration[open]{padding-bottom:10px}

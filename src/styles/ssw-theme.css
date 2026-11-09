@@ -1,0 +1,76 @@
+/* EGIDIUS 09C — cores do escudo SSW. Não altera a lógica esportiva. */
+:root {
+  --ssw-amarelo: #ffcf65;
+  --ssw-laranja: #ea8b36;
+  --ssw-laranja-escuro: #bd5528;
+  --ssw-marrom: #32211d;
+  --ssw-creme: #fff8eb;
+  --ssw-contorno: #d9a16a;
+  --ssw-sombra: 0 8px 22px rgba(77, 39, 16, 0.14);
+}
+html, body, #root { min-height: 100%; }
+body { background: #f4b953; color: var(--ssw-marrom); }
+.shell { background: transparent; }
+.main {
+  min-height: 100vh;
+  background: linear-gradient(165deg, #ffda7b 0%, #f4b352 46%, #e78236 100%);
+}
+.topbar {
+  background: linear-gradient(90deg, #fff5d9, #ffdf98);
+  border-bottom-color: #e2a351;
+}
+.sidebar { background: linear-gradient(180deg, #38221e, #5d2d20); }
+.side-link--active { background: #c96530; color: #fffdf6; }
+.side-link--active:hover { background: #b65026; }
+.prototype-led { background: #e5a83d; }
+/* O escudo original permanece em /ssw-escudo-real.jpg. */
+.campo-header {
+  background: linear-gradient(112deg, #ffe08a 0%, #f6ab46 54%, #df7630 100%);
+  color: #352019;
+  box-shadow: var(--ssw-sombra);
+  border: 1px solid rgba(100, 48, 19, 0.17);
+}
+.campo-header h1 { color: #33201c; }
+.campo-header h1 span { color: #a93c1e; }
+.campo-header p { color: #4e3021; }
+.campo-kicker { color: #713d20; }
+.campo-led { background: #a93c1e; }
+.campo-crest { border-color: #fff2c8; }
+.campo-round-panel, .campo-surface,
+.surface, .metric-card {
+  background: rgba(255, 250, 241, 0.97);
+  border-color: rgba(111, 63, 32, 0.19);
+  box-shadow: var(--ssw-sombra);
+}
+.campo-stats > div {
+  background: #fff0ce;
+  border-color: #eed4a4;
+}
+.campo-stats strong { color: #7e381f; }
+.campo-select-label select,
+.campo-search,
+.campo-player,
+.campo-game {
+  background: #fffbf3;
+  border-color: #d7ac7e;
+}
+.campo-action--cream { background: #ffe0a0; color: #3e241c; }
+.campo-action--orange { background: #e98e39; color: #302018; }
+.campo-action--red { background: #b84832; color: #fff9f0; }
+.campo-action--dark { background: #402924; color: #fff2d6; }
+.campo-next { background: #442b25; color: #fff8e8; }
+.campo-outline-action {
+  background: #fff1cd;
+  border-color: #af652f;
+  color: #642d1b;
+}
+.campo-action, .campo-outline-action, .campo-player, .campo-game {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.campo-action:active, .campo-outline-action:active,
+.campo-player:active, .campo-game:active { transform: scale(0.985); }
+button:focus-visible, a:focus-visible, select:focus-visible,
+input:focus-visible { outline: 3px solid #7e361e; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .campo-action, .campo-outline-action, .campo-player, .campo-game { transition: none; }
+}

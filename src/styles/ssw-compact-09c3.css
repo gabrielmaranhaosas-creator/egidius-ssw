@@ -1,0 +1,102 @@
+/* EGIDIUS 09C3 — Mais campo, menos apresentação.
+   Ajustes de interface APENAS para celulares. Respeita cores, logo, dados e ações existentes. */
+
+@media (max-width: 740px) {
+  /* Barra de estado já informa se tudo foi salvo; título de página repetido sai do caminho. */
+  .main .topbar { display: none; }
+  .main .page { padding-top: 10px; }
+
+  /* Súmula Expressa: placar e controles passam a aparecer cedo. */
+  .express-page { padding-bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .express-hero {
+    min-height: 64px; padding: 12px 16px; margin-bottom: 10px;
+    border-radius: 15px; gap: 10px;
+  }
+  .express-hero .express-overline, .express-hero p { display: none; }
+  .express-hero h1 { font-size: clamp(27px, 7.3vw, 33px); line-height: 1.08; margin: 0; }
+  .express-hero > svg { width: 27px; height: 27px; flex-shrink: 0; }
+  .express-panel { padding: 12px; margin-bottom: 10px; border-radius: 15px; }
+  .express-round { gap: 0; }
+  .express-round label { font-size: 17px; gap: 6px; }
+  .express-round-chip { display: none; }
+  .express-page select { min-height: 49px; font-size: 17px; }
+  .express-section-head { flex-wrap: nowrap; gap: 8px; align-items: center; margin-bottom: 9px; }
+  .express-section-head .express-overline { display: none; }
+  .express-section-head h2 { font-size: clamp(20px, 5.2vw, 24px); line-height: 1.2; margin: 0; }
+  .express-section-head > div { min-width: 0; }
+  .express-undo { flex: 0 0 auto; min-height: 48px !important; padding: 7px 10px; font-size: 14px !important; }
+  .express-pager { grid-template-columns: 48px minmax(0,1fr) 48px; gap: 5px; }
+  .express-pager > button { min-height: 53px; }
+  .express-pager label { min-width: 0; gap: 5px; font-size: 14px; }
+  .express-score-grid { margin-top: 12px; }
+  .express-score-team { padding: 11px 7px; }
+  .express-score-team > strong { min-height: 2.5em; }
+
+  /* Jogadores: a busca vem imediatamente após um título curto. */
+  .athletes-heading {
+    padding: 13px 15px; border-radius: 15px; display: flex; flex-wrap: wrap;
+    flex-direction: row; align-items: center; gap: 8px;
+  }
+  .athletes-heading > div { min-width: 0; flex: 1; }
+  .athletes-eyebrow, .athletes-heading p { display: none; }
+  .athletes-heading h1 { font-size: clamp(29px, 7.6vw, 36px); margin: 0; line-height: 1.05; }
+  .athletes-count {
+    width: auto; margin: 0; padding: 8px 10px; font-size: 14px;
+    border-radius: 11px; gap: 4px;
+  }
+  .athletes-count svg { width: 17px; height: 17px; }
+  .athletes-tools {
+    display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 8px; margin: 12px 0;
+  }
+  .athletes-tools .athletes-search { grid-column: 1 / -1; min-width: 0; }
+  .athletes-tools .athletes-filter { grid-column: 1 / -1; min-width: 0; width: auto; }
+  .athletes-tools .athletes-filter select { min-width: 0; font-size: 16px; }
+  /* Conserva os nomes dos botões: para idosos, ícones isolados seriam ambíguos. */
+  .athletes-tools .athletes-refresh {
+    min-width: 0; min-height: 51px; padding: 6px 8px; margin: 0;
+    justify-content: center; font-size: 15px; gap: 6px;
+    line-height: 1.15; overflow-wrap: anywhere;
+  }
+  .athletes-tools .athletes-refresh svg { width: 19px; height: 19px; flex: 0 0 auto; }
+  .athletes-tools input { min-width: 0; }
+
+  /* Mais: as quatro opções mais usadas primeiro; duas opções secundárias recolhidas. */
+  .ssw-mobile-more { max-height: min(315px, 63dvh); }
+  .ssw-mobile-more > button { min-height: 65px; font-size: 15px; }
+  .ssw-mobile-more .ssw-more-secondary {
+    grid-column: 1 / -1; min-width: 0;
+    background: #342824; border-radius: 10px;
+    border: 1px solid #765340;
+  }
+  .ssw-more-secondary summary {
+    list-style: none; cursor: pointer; display: flex;
+    align-items: center; justify-content: space-between;
+    padding: 10px 14px; min-height: 49px;
+    font-size: 15px; font-weight: 800; color: #fff1d9;
+  }
+  .ssw-more-secondary summary::-webkit-details-marker { display: none; }
+  .ssw-more-secondary[open] summary svg { transform: rotate(90deg); }
+  .ssw-more-secondary-links { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; padding: 0 7px 7px; }
+  .ssw-mobile-more .ssw-more-secondary-links button {
+    min-height: 61px; padding: 8px; font-size: 14px; line-height: 1.2;
+    color: #fff1d9; background: #ffffff0a; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px;
+  }
+  .ssw-more-secondary summary:focus-visible,
+  .ssw-mobile-more button:focus-visible,
+  .express-page button:focus-visible,
+  .athletes-tools button:focus-visible {
+    outline: 3px solid #ffda7f; outline-offset: 2px;
+  }
+}
+@media (max-width: 365px) {
+  .athletes-heading h1 { font-size: 27px; }
+  .athletes-count { font-size: 12px; }
+  .express-section-head h2 { font-size: 19px; }
+  .express-undo { padding: 6px 8px; font-size: 13px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ssw-more-secondary summary svg { transition: none; }
+}

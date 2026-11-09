@@ -1,0 +1,90 @@
+/* EGIDIUS 09C4 — operação com menos etapas e elenco em lista no celular.
+   É uma evolução de apresentação: sem mudanças de dados, backend ou autenticação. */
+.express-new-game {
+  margin-top: 12px;
+  border-top: 1px solid #e6d4bc;
+  padding-top: 12px;
+}
+.express-new-game-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  border: 2px solid #b56a32;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #ffedc6;
+  color: #4c291e;
+  font-size: 18px;
+  font-weight: 850;
+  cursor: pointer;
+  text-align: left;
+}
+.express-new-game-toggle span { flex: 1; }
+.express-new-game-toggle > svg:last-child { flex-shrink: 0; transition: transform .18s; }
+.express-new-game-toggle > svg.is-open { transform: rotate(90deg); }
+.express-new-game-form { margin-top: 10px; padding: 12px 4px 4px; }
+.express-new-game-form p { margin: 0 0 8px; color: #573e30; line-height: 1.4; font-size: 16px; }
+.express-new-game-form .express-team-select { margin: 10px 0; }
+.express-closed-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #b5c9a9;
+  border-radius: 10px;
+  background: #ecf3e6;
+  color: #365633;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.express-new-game-toggle:focus-visible { outline: 3px solid #9d3925; outline-offset: 3px; }
+@media (max-width: 740px) {
+  .express-new-game-toggle { font-size: 18px; min-height: 54px; }
+  .express-closed-note { font-size: 15px; }
+  /* A lista reduz ruído de figurinhas e facilita a leitura dos nomes. */
+  .athletes-grid { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .athletes-card {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    align-items: center;
+    column-gap: 12px;
+    min-height: 128px;
+    padding: 11px 12px;
+    border-radius: 13px;
+    text-align: left;
+  }
+  .athletes-card-top { grid-column: 2; grid-row: 1; justify-content: flex-end; min-height: 16px; }
+  .athletes-card-top img { display: none; }
+  .athletes-card-top small { font-size: 12px; }
+  .athletes-card-avatar {
+    grid-column: 1; grid-row: 1 / 6;
+    width: 88px; height: 108px; margin: 0;
+    font-size: 43px; border-width: 3px;
+  }
+  .athletes-card > strong { grid-column: 2; grid-row: 2; font-size: 21px; line-height: 1.15; }
+  .athletes-card-meta { grid-column: 2; grid-row: 3; font-size: 14px; margin: 4px 0; }
+  .athletes-card-stats {
+    grid-column: 2; grid-row: 4; flex-wrap: wrap;
+    gap: 5px 13px; border: 0; padding: 4px 0;
+    font-size: 15px;
+  }
+  .athletes-card-action {
+    grid-column: 2; grid-row: 5;
+    display: flex; justify-content: flex-start;
+    align-items: center; gap: 4px;
+    width: auto; padding: 4px 0 0; margin: 0;
+    font-size: 14px; line-height: 1.2;
+  }
+  .athletes-card-action svg { width: 17px; height: 17px; }
+}
+@media(max-width: 355px) {
+  .athletes-card { grid-template-columns: 76px minmax(0, 1fr); column-gap: 10px; }
+  .athletes-card-avatar { width: 76px; height: 100px; }
+  .athletes-card > strong { font-size: 19px; }
+}
+@media(prefers-reduced-motion: reduce) {
+  .express-new-game-toggle > svg:last-child { transition: none; }
+}
