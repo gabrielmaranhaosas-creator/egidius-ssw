@@ -1,0 +1,66 @@
+name: egidius
+
+services:
+  app:
+    build:
+      context: ../..
+    image: egidius-local:oracle
+    restart: unless-stopped
+    env_file:
+      - ${EGIDIUS_ROOT:?Informe EGIDIUS_ROOT no arquivo privado}/private/app.env
+    environment:
+      PORT: "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - type: bind
+        source: ${EGIDIUS_ROOT}/data
+        target: /var/data
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      EGIDIUS_DOMAIN: ${EGIDIUS_DOMAIN:?Informe o dominio publico}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - type: bind
+        source: ${EGIDIUS_ROOT}/caddy/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${EGIDIUS_ROOT}/caddy/config
+        target: /config
+        bind:
+          create_host_path: false
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
