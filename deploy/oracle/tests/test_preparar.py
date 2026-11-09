@@ -86,6 +86,10 @@ class PreparacaoOracleTests(unittest.TestCase):
             module.preparar(self.archive, link / 'novo', 'ssw.exemplo.org')
         self.assertFalse((self.base / 'novo').exists())
 
+    def test_recusa_dados_dentro_do_checkout(self):
+        with self.assertRaisesRegex(ValueError, 'fora do checkout'):
+            module.preparar(self.archive, SCRIPT.parents[2] / 'dados-privados', 'ssw.exemplo.org')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -44,6 +44,9 @@ def preparar(archive, root, domain):
     root = Path(root).expanduser().absolute()
     if any(p.is_symlink() for p in (root, *root.parents)):
         raise ValueError('O destino não pode conter links simbólicos.')
+    root = root.resolve()
+    if root.is_relative_to(Path(__file__).resolve().parents[2]):
+        raise ValueError('Dados e segredos devem ficar fora do checkout do código.')
     if not re.fullmatch(r'/[A-Za-z0-9_./-]+', str(root)):
         raise ValueError('Use um caminho absoluto sem espaços para os dados do servidor.')
     if root.exists():
