@@ -74,7 +74,7 @@ jobs:
           egidius-ci:teste
       - name: Conferir API e interface compilada
         run: |
-          curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:18080/api/health
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-connrefused --retry-delay 1 --max-time 3 http://127.0.0.1:18080/api/health
           curl --fail --silent --show-error http://127.0.0.1:18080/ > /tmp/egidius-ci-index.html
           python3 - <<'PY'
           from pathlib import Path
