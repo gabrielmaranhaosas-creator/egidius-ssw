@@ -21,8 +21,8 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONPATH: backend
-      EGIDIUS_DATABASE_URL: sqlite:///${{ runner.temp }}/egidius-ci.sqlite3
-      EGIDIUS_MEDIA_DIR: ${{ runner.temp }}/egidius-media
+      EGIDIUS_DATABASE_URL: sqlite:////tmp/egidius-ci.sqlite3
+      EGIDIUS_MEDIA_DIR: /tmp/egidius-ci-media
       EGIDIUS_LOCAL_ACCESS: "true"
       EGIDIUS_SECURE_COOKIES: "false"
     steps:
