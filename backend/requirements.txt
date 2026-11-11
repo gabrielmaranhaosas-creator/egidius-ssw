@@ -1,0 +1,15 @@
+fastapi==0.162.2
+uvicorn==0.54.0
+SQLAlchemy==2.1.8
+pydantic==2.14.3
+psycopg[binary]==3.3.8
+boto3==1.44.0
+
+# Leitura de XLSX para o importador inteligente (sem macros)
+openpyxl==3.1.5
+
+# Verificacao rigorosa de imagens na importacao ZIP
+Pillow==12.3.0
+
+# Validação dos documentos PDF enviados pelo SSW
+pypdf==6.21.4

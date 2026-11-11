@@ -1,0 +1,17 @@
+.ssw-sabado-proximo{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0;padding:16px 18px;border:1px solid #dcb57e;border-radius:12px;background:#fff3d7;color:#482b20;min-width:0}
+.ssw-sabado-proximo>div{display:grid;gap:6px;min-width:0}
+.ssw-sabado-proximo small{font-size:11px;font-weight:850;letter-spacing:.08em;color:#875022}
+.ssw-sabado-proximo strong{font-size:18px;line-height:1.4;overflow-wrap:anywhere}
+.ssw-sabado-proximo span{font-size:13px;line-height:1.5}
+.ssw-sabado-proximo>button,.ssw-cadastro-atalho{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:48px;border:1px solid #75462b;border-radius:9px;background:#4b2c21;color:#fff5e5;padding:11px 16px;font-size:15px;font-weight:800;flex-shrink:0;cursor:pointer}
+.ssw-cadastro-atalho{margin:12px 0;max-width:100%;white-space:normal}
+.roster-form>.ssw-cadastro-presenca{display:flex;align-items:flex-start;gap:10px;margin:14px 0 8px;font-size:14px;line-height:1.5;font-weight:500;color:#493025;cursor:pointer}
+.roster-form>.ssw-cadastro-presenca>input{flex:0 0 20px;width:20px;height:20px;min-height:20px;margin:1px 0 0;padding:0;accent-color:#88421f}
+.roster-form>.ssw-cadastro-hint{font-size:13px;line-height:1.6;color:#74553b;margin:8px 0}
+#eg-cadastro,#eg-checkin,#eg-team-board{scroll-margin-top:140px}
+.ssw-sabado-proximo>button:focus-visible,.ssw-cadastro-atalho:focus-visible{outline:3px solid #d37e32;outline-offset:3px}
+@media(max-width:600px){.ssw-sabado-proximo{align-items:stretch;flex-direction:column;padding:15px}.ssw-sabado-proximo strong{font-size:17px}.ssw-sabado-proximo>button{width:100%}.roster-form>.ssw-cadastro-presenca{font-size:14px}}
+.ssw-release-registration .roster-form>label:first-child{font-size:15px}
+.ssw-release-registration .roster-form input:not([type=checkbox]){font-size:16px;min-height:48px}
+.ssw-release-registration .roster-form button{font-size:15px;min-height:48px}
+.ssw-release-registration .roster-form .rounds-notice,.ssw-release-registration .roster-form .rounds-validation{font-size:14px;line-height:1.55}

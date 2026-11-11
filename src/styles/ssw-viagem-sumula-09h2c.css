@@ -1,0 +1,31 @@
+/* EGIDIUS 09H2c — súmula de campo, compacta e acessível */
+.ssw-match-panel{border-color:#c89048}
+.ssw-match-score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:center;background:#43291f;color:#fff2d8;border-radius:18px;padding:19px 12px}
+.ssw-match-score>div{display:flex;flex-direction:column;text-align:center;gap:4px;min-width:0}
+.ssw-match-score span{font-weight:800;font-size:clamp(16px,2vw,23px);overflow-wrap:anywhere}
+.ssw-match-score strong{font-size:clamp(48px,7vw,86px);line-height:1;font-variant-numeric:tabular-nums;color:#ffcc71}
+.ssw-match-score b{font-size:30px;color:#ffdfaa}
+.ssw-match-status{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;color:#6a4e3a;margin:14px 0;font-weight:700}
+.ssw-match-state{border-radius:30px;padding:7px 12px;background:#e5d1b2;color:#583c2e;font-size:14px}
+.ssw-match-state--em_andamento{background:#ffe1a2;color:#4c2d11}
+.ssw-match-state--encerrada{background:#dfebd6;color:#284c23}
+.ssw-match-actions{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin:12px 0}
+.ssw-match-actions span{color:#74503d;font-size:15px}
+.ssw-match-minute{max-width:240px;margin:14px 0}
+.ssw-match-goal-grids{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:14px 0}
+.ssw-match-goal-team{border-radius:14px;border:1px solid #d7b38c;padding:12px;background:#fffdf9;min-width:0}
+.ssw-match-goal-team h3{font-size:19px;margin:0 0 10px}
+.ssw-match-goal-player{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:9px 0;border-top:1px solid #f0e0cb}
+.ssw-match-goal-player span{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.ssw-match-goal-player small{font-size:13px;color:#846d5a;white-space:nowrap;margin-left:4px}
+.ssw-match-goal-player button,.ssw-match-history-line button{display:flex;gap:5px;align-items:center;justify-content:center;flex:none;border-radius:10px;min-height:46px;padding:8px 13px;border:1px solid #a55525;background:#faad61;color:#3b2114;font-weight:800;cursor:pointer}
+.ssw-match-expand{border:1px solid #deb88b;background:#fffcf7;border-radius:14px;margin:13px 0;padding:10px 14px}
+.ssw-match-expand>summary{display:flex;align-items:center;gap:10px;cursor:pointer;min-height:46px;font-weight:800;list-style:none}
+.ssw-match-expand>summary::-webkit-details-marker{display:none}
+.ssw-match-expand>summary span{font-size:13px;color:#8a5c36;margin-left:auto}
+.ssw-match-swap-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end;margin-top:12px}
+.ssw-match-history{display:grid;gap:7px;margin-top:12px}
+.ssw-match-history-line{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #ead9c1;background:#fffdfa;padding:10px;border-radius:10px;font-size:15px}
+.ssw-match-history-line button{background:#fff3e3;font-size:14px}
+.ssw-trip-lock-hint{display:flex;gap:8px;align-items:center;color:#754324;background:#fff0d4;border-radius:10px;padding:10px}
+@media(max-width:760px){.ssw-match-goal-grids,.ssw-match-swap-form{grid-template-columns:1fr}.ssw-match-score{gap:6px;padding:14px 8px}.ssw-match-score strong{font-size:48px}.ssw-match-history-line{flex-wrap:wrap}.ssw-match-minute{max-width:100%}}

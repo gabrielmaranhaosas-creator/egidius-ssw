@@ -1,0 +1,69 @@
+:root {
+  /* identidade principal */
+  --ssw-yellow: #f2c45a;
+  --ssw-yellow-soft: #f6d884;
+  --ssw-orange: #d97a32;
+  --ssw-orange-strong: #c85d1e;
+  --ssw-brown: #2f231d;
+  --ssw-brown-soft: #4a382f;
+  --ssw-cream: #fff8ef;
+  --ssw-cream-strong: #f8efe2;
+  --ssw-white: #ffffff;
+
+  /* feedback */
+  --ssw-success-bg: #e5f4e8;
+  --ssw-success-text: #2f6b3f;
+  --ssw-danger-bg: #fde7e4;
+  --ssw-danger-text: #a03f2d;
+  --ssw-warning-bg: #fff4d6;
+  --ssw-warning-text: #8a6418;
+
+  /* superfícies */
+  --page-bg:
+    linear-gradient(
+      180deg,
+      #f7c85d 0%,
+      #efac4d 28%,
+      #dd7d33 62%,
+      #c85d1e 100%
+    );
+
+  --panel-bg: rgba(255, 248, 239, 0.95);
+  --panel-border: rgba(85, 52, 32, 0.12);
+  --card-bg: rgba(255, 251, 245, 0.98);
+  --card-border: rgba(85, 52, 32, 0.14);
+
+  /* texto */
+  --text-main: #2f231d;
+  --text-soft: #655247;
+  --text-on-dark: #fffaf3;
+
+  /* sombras */
+  --shadow-soft: 0 12px 32px rgba(63, 33, 16, 0.12);
+  --shadow-card: 0 8px 20px rgba(63, 33, 16, 0.10);
+
+  /* raios */
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+
+  /* espaçamento */
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 20px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* tipografia */
+  --font-size-xs: 14px;
+  --font-size-sm: 16px;
+  --font-size-md: 18px;
+  --font-size-lg: 22px;
+  --font-size-xl: 28px;
+  --font-size-hero: 44px;
+
+  /* botões */
+  --tap-size: 56px;
+}

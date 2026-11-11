@@ -1,0 +1,34 @@
+/* EGIDIUS 09C — legibilidade e toque confortável, sem esconder funções. */
+@media (max-width: 740px) {
+  .main {
+    background: linear-gradient(180deg, #ffdc81 0%, #f4b452 46%, #eb8c3f 100%);
+  }
+  .topbar { min-height: 46px; background: #fff0c9; }
+  .page { padding: 10px 10px calc(100px + env(safe-area-inset-bottom)); }
+  .campo-page { gap: 12px; }
+  .campo-header { min-height: 105px; padding: 13px 15px; }
+  .campo-header h1 { font-size: clamp(29px, 9vw, 42px); }
+  .campo-crest { width: 57px; height: 74px; flex: 0 0 57px; }
+  .campo-round-panel, .campo-surface { padding: 14px; }
+  .campo-heading-row h2, .campo-section-heading h2 { font-size: 28px; }
+  .campo-select-label { font-size: 16px; }
+  .campo-select-label select { min-height: 54px; font-size: 17px; }
+  .campo-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .campo-stats > div { min-height: 74px; padding: 10px 8px; }
+  .campo-stats strong { font-size: 32px; }
+  .campo-stats span { font-size: 14px; line-height: 1.25; }
+  .campo-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .campo-action { min-height: 96px; padding: 13px; }
+  .campo-action strong { font-size: 24px; }
+  .campo-player, .campo-game { min-height: 62px; }
+  .campo-player strong { font-size: 17px; }
+  .campo-outline-action { min-height: 56px; font-size: 17px; }
+  .mobile-nav {
+    background: linear-gradient(90deg, #33221d, #512d21);
+    border-top: 2px solid #b76b33;
+  }
+  .mobile-link { min-height: 60px; color: #f3dfc1; }
+  .mobile-link--active { color: #ffcf65; }
+  .mobile-link small { font-size: 13px; }
+  .sync-banner--saved { background: #fff6e0; color: #315d39; }
+}

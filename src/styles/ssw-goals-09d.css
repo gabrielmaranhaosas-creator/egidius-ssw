@@ -1,0 +1,48 @@
+/* EGIDIUS 09D — Súmula de toque rápido; sem alterar identidade SSW. */
+.eg09d-goals{margin:18px 0 22px;border:1px solid #e1c59a;border-radius:18px;background:#fffbf4;padding:14px}
+.eg09d-goals-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.eg09d-goals-head h3{font-size:clamp(20px,3vw,25px);line-height:1.15;margin:0;color:#40251a}
+.eg09d-goals-head>span{font-size:13px;color:#785638;font-weight:700}
+.eg09d-team-tabs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px}
+.eg09d-team-tabs button{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:58px;padding:9px 10px;border:2px solid #dbc2a3;border-radius:13px;color:#553728;background:#fff4dc;text-align:left}
+.eg09d-team-tabs button span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px;line-height:1.2}
+.eg09d-team-tabs button strong{font-size:20px;font-variant-numeric:tabular-nums}
+.eg09d-team-tabs button.is-active{background:#a94623;color:white;border-color:#a94623}
+.eg09d-player-row{display:grid;grid-template-columns:minmax(0,1fr) 52px 92px;align-items:center;gap:7px;padding:8px;border:1px solid #e9d9c1;background:white;border-radius:13px;min-height:74px}
+.eg09d-roster{display:grid;gap:7px}
+.eg09d-player-info{min-width:0;padding-left:3px}
+.eg09d-player-info strong{display:block;color:#40251a;font-size:17px;line-height:1.25;overflow-wrap:anywhere}
+.eg09d-player-info small{display:block;color:#76563f;font-size:14px;margin-top:3px;font-weight:650}
+.eg09d-player-row button{min-height:54px;border:none;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:10px}
+.eg09d-minus{background:#f4e6d1;color:#503527}
+.eg09d-add{background:#b44324;color:white}
+.eg09d-help{font-size:14px!important;line-height:1.45;color:#654a36;margin:12px 0 0}
+.eg09d-no-players{padding:12px;color:#624e42}
+.eg09d-advanced{border:1px solid #e5d7c4;border-radius:14px;background:#fff7e9;margin:18px 0 20px;padding:0 13px}
+.eg09d-advanced>summary{list-style:revert;cursor:pointer;min-height:56px;display:list-item;padding:16px 4px;font-size:17px;font-weight:800;color:#503326}
+.eg09d-advanced>p{font-size:14px;line-height:1.5;color:#735943}
+.eg09d-score-corrections{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.eg09d-score-corrections>div{border:1px solid #e8d6b9;background:#fff;padding:12px;border-radius:12px}
+.eg09d-score-corrections strong{font-size:15px;color:#513426}
+.eg09d-score-correction-buttons{display:grid;gap:8px;margin-top:8px}
+.eg09d-score-correction-buttons button{border:1px solid #d9b995;background:#fff2db;color:#4e3024;padding:8px;font-size:14px}
+.eg09d-score-correction-buttons button:last-child{background:#a94c28;border:0;color:white}
+.eg09d-advanced .express-keepers{margin:15px 0}
+.eg09d-advanced .express-author{margin:12px 0 15px}
+.eg09d-team-tabs button:focus-visible,.eg09d-player-row button:focus-visible,.eg09d-advanced summary:focus-visible{outline:3px solid #2e2722;outline-offset:3px}
+@media(max-width:760px){
+ .express-board .express-score-grid{margin:10px 0 8px}
+ .express-board .express-score-team{padding:9px 6px}
+ .express-board .express-score-value{font-size:clamp(50px,16vw,70px)}
+ .express-board .express-score-team>strong{min-height:0;font-size:15px}
+ .express-board .express-score-team small{font-size:12px}
+ .eg09d-goals{padding:10px;margin:10px 0 16px}
+ .eg09d-team-tabs button{padding:8px;min-height:58px}
+ .eg09d-player-row{grid-template-columns:minmax(0,1fr) 50px 82px}
+ .eg09d-score-corrections{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.eg09d-goals *{scroll-behavior:auto!important;transition:none!important}}
+
+.eg09d-keeper-reminder{background:#fff0ce;color:#6a331d;font-size:15px!important;font-weight:750;border-radius:10px;padding:12px;margin:10px 0}
+/* A 09C9 já inclui um botão flutuante Topo global: evitar um segundo botão no rodapé. */
+.express-page .express-mobile-back{display:none}

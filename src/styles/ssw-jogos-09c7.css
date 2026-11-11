@@ -1,0 +1,54 @@
+/* EGIDIUS 09C7 — ações de partidas no início do Sábado completo. */
+.egc7-control{scroll-margin-top:18px;margin:16px 0 24px;border:2px solid #d99a51;border-radius:19px;background:#fff9ed;box-shadow:0 8px 20px #5e341421;padding:18px;color:#35241e}
+.egc7-title{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.egc7-title>svg{color:#9b5326;flex-shrink:0}
+.egc7-title span{font-size:12px;font-weight:900;letter-spacing:.06em;color:#925026}
+.egc7-title h3{font:900 clamp(24px,3vw,34px)/1.1 'Barlow Condensed',Impact,sans-serif;margin:5px 0;color:#33221c;text-transform:uppercase}
+.egc7-title p{font-size:14px;color:#6c5542;margin:3px 0;line-height:1.5}
+.egc7-create{border:1px solid #e9d0ac;background:#fff3d9;border-radius:14px;padding:15px}
+.egc7-create h4{font-size:20px;line-height:1.2;margin:0 0 13px;font-weight:850;color:#3d281e}
+.egc7-team-fields{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr);align-items:end;gap:10px}
+.egc7-team-fields label{font-size:15px;font-weight:800;display:flex;flex-direction:column;gap:7px;min-width:0}
+.egc7-team-fields select{border:1.5px solid #b98151;border-radius:11px;background:#fffefa;color:#2f231c;min-height:54px;padding:10px;font-size:17px;min-width:0;width:100%;font-weight:700}
+.egc7-team-fields>span{text-align:center;font-size:24px;padding-bottom:10px;font-weight:900;color:#85512f}
+.egc7-new-button{width:100%;margin-top:14px;min-height:60px;background:#c34c24;border:2px solid #9d361a;border-radius:12px;color:white;font-size:19px;font-weight:900;display:flex;gap:10px;justify-content:center;align-items:center;cursor:pointer}
+.egc7-new-button:disabled{opacity:.5;cursor:not-allowed}
+.egc7-error{color:#9d2719;font-size:14px;font-weight:700;margin:8px 0 0}
+.egc7-empty{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.egc7-empty p{font-size:16px;line-height:1.4;margin:0}
+.egc7-empty button{min-height:52px;display:flex;align-items:center;gap:5px;border:1px solid #b9713c;padding:9px 14px;border-radius:10px;background:#e6a148;color:#382217;font-size:16px;font-weight:800;cursor:pointer}
+.egc7-list{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.egc7-no-games{color:#685647;padding:12px;font-size:15px}
+.egc7-game{border:1px solid #dbb98e;background:#fffefa;border-radius:13px;padding:14px;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.egc7-game-info{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.egc7-game-caption{font-size:12px;font-weight:850;color:#96512f;letter-spacing:.03em}
+.egc7-game-info strong{font-size:17px;line-height:1.4;color:#32241e;overflow-wrap:anywhere}
+.egc7-game-info strong span{color:#a93a1e;white-space:nowrap;font-size:19px;font-weight:900}
+.egc7-game-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.egc7-game-actions button{min-height:50px;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:7px;font-size:15px;font-weight:850;cursor:pointer}
+.egc7-edit{background:#f4b956;color:#3b2419;border:1px solid #bb7a32}
+.egc7-delete{background:#fff0e9;color:#972e21;border:1px solid #c67e70}
+.egc7-closed{font-size:13px;color:#6e5b4a;max-width:100px;line-height:1.4}
+.egc7-control button:focus-visible,.egc7-control select:focus-visible{outline:3px solid #602c1b;outline-offset:3px}
+/* A criação de jogos agora é exibida somente no painel de controle no topo. */
+#eg-game-list{scroll-margin-top:24px}
+.rounds-system .quick-matches-heading{margin-top:25px}
+.rounds-system .match-editor{scroll-margin-top:18px}
+@media(max-width:768px){
+ .main .inner-hero:has(+ .rounds-system){display:none}
+ .rounds-system .rounds-head p:not(.eyebrow),.rounds-system .rounds-counter{display:none}
+ .egc7-control{padding:13px;margin:12px 0 18px}
+ .egc7-title{margin-bottom:12px}
+ .egc7-game{flex-wrap:wrap;align-items:flex-start;padding:12px;gap:12px}
+ .egc7-game-info{flex-basis:100%}
+ .egc7-game-actions{width:100%;flex-wrap:wrap}
+ .egc7-game-actions button{flex:1;justify-content:center;min-height:56px;font-size:17px}
+ .egc7-closed{max-width:none}
+}
+@media(max-width:400px){
+ .egc7-team-fields{grid-template-columns:minmax(0,1fr);gap:7px}
+ .egc7-team-fields>span{padding:0}
+ .egc7-create{padding:12px}
+ .egc7-game-info strong{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){.egc7-control *{scroll-behavior:auto}}
