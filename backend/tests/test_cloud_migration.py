@@ -178,3 +178,44 @@ def test_primeira_carga_postgres_recusa_vazio_e_reinicio_nao_sobrescreve(source,
     finally:
         engine.dispose()
     assert source_db.read_bytes() == raw
+
+
+def test_api_armazenamento_externo_backup_e_acesso_autenticado(source, tmp_path, monkeypatch):
+    import shutil
+    import egidius_api.media as media_module
+    import egidius_api.storage as storage_module
+    import egidius_api.exports as exports_module
+    source_db, original_media = source
+    remote = tmp_path / 'objetos-externos'
+    shutil.copytree(original_media, remote)
+    class Remote(LocalStorage):
+        remote = True
+        def signed_url(self, name, mime, filename, document=False):
+            assert self.path(name).is_file()
+            return 'https://privado.example.org/' + name + '?assinatura=temporaria'
+    storage = Remote(remote)
+    for mod in (media_module, storage_module, exports_module):
+        monkeypatch.setattr(mod, 'get_storage', lambda: storage)
+    monkeypatch.setenv('EGIDIUS_MEDIA_DIR', str(tmp_path / 'temporarios-novos'))
+    app = create_app('sqlite:///' + str(source_db))
+    try:
+        with TestClient(app, base_url='http://127.0.0.1:8017', client=('127.0.0.1', 1)) as c:
+            auth = c.post('/api/auth/local').json(); headers = {'X-CSRF-Token': auth['csrf']}
+            uploaded = c.post('/api/media/upload?scope=athlete&kind=photo&athlete_id=j1',
+                              content=b'\xff\xd8\xffnova-foto', headers=headers)
+            assert uploaded.status_code == 201
+            link = uploaded.json()['url']
+            response = c.get(link, follow_redirects=False)
+            assert response.status_code == 307
+            assert response.headers['cache-control'] == 'private, no-store'
+            assert response.headers['location'].startswith('https://privado.example.org/')
+            c.cookies.clear()
+            assert c.get(link, follow_redirects=False).status_code == 401
+            c.post('/api/auth/local')
+            backup = c.get('/api/backup/download')
+            assert backup.status_code == 200
+            with zipfile.ZipFile(io.BytesIO(backup.content)) as bundle:
+                assert len([n for n in bundle.namelist() if n.startswith('media/')]) == 2
+        assert list((tmp_path / 'temporarios-novos').glob('*.jpg')) == []
+    finally:
+        app.state.engine.dispose()
