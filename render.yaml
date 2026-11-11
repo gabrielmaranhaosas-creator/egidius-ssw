@@ -2,28 +2,36 @@ services:
   - type: web
     name: egidius-ssw
     runtime: docker
-    plan: starter
+    plan: free
     region: virginia
     numInstances: 1
     autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
-    disk:
-      name: egidius-dados
-      mountPath: /var/data
-      sizeGB: 5
     envVars:
       - key: PORT
         value: "10000"
-      - key: EGIDIUS_REQUIRE_PERSISTENCE
-        value: "true"
-      - key: EGIDIUS_DATA_VOLUME
-        value: /var/data
+      - key: EGIDIUS_DEPLOYMENT_MODE
+        value: neon
       - key: EGIDIUS_DATABASE_URL
-        value: sqlite:////var/data/egidius.sqlite3
+        sync: false
+      - key: EGIDIUS_STORAGE_BACKEND
+        value: s3
       - key: EGIDIUS_MEDIA_DIR
-        value: /var/data/media
+        value: /tmp/egidius-media
+      - key: EGIDIUS_S3_ENDPOINT
+        sync: false
+      - key: EGIDIUS_S3_BUCKET
+        sync: false
+      - key: EGIDIUS_S3_ACCESS_KEY_ID
+        sync: false
+      - key: EGIDIUS_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: EGIDIUS_S3_REGION
+        value: us-east-1
+      - key: EGIDIUS_S3_PREFIX
+        value: egidius-media
       - key: EGIDIUS_SECURE_COOKIES
         value: "true"
       - key: EGIDIUS_LOCAL_ACCESS

@@ -66,6 +66,23 @@ class History(Base):
     payload: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+
+class PendingMediaDeletion(Base):
+    __tablename__ = 'pending_media_deletions'
+    stored_name: Mapped[str] = mapped_column(String(120), primary_key=True)
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+
+def engine_for_url(db_url):
+    if db_url.startswith(('postgres://', 'postgresql://')):
+        db_url = 'postgresql+psycopg://' + db_url.split('://', 1)[1]
+    options = {'pool_pre_ping': True, 'hide_parameters': True}
+    if db_url.startswith('postgresql'):
+        options.update(pool_size=2, max_overflow=0, pool_recycle=300, connect_args={'connect_timeout': 15})
+    else:
+        options['connect_args'] = {'check_same_thread': False} if db_url.startswith('sqlite:') else {}
+    return create_engine(db_url, **options)
+
+
 def session_factory(url: str | None = None):
     db_url = url or os.environ.get('EGIDIUS_DATABASE_URL') or f'sqlite:///{DEFAULT_DB}'
     if db_url.startswith('sqlite:') and ':memory:' not in db_url:
@@ -74,7 +91,7 @@ def session_factory(url: str | None = None):
             dbfile = Path(address)
             dbfile.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             if dbfile.exists(): os.chmod(dbfile, 0o600)
-    engine = create_engine(db_url, pool_pre_ping=True, connect_args={'check_same_thread': False} if db_url.startswith('sqlite:') else {})
+    engine = engine_for_url(db_url)
     Base.metadata.create_all(engine)
     if db_url.startswith('sqlite:') and ':memory:' not in db_url:
         address = db_url.partition('sqlite:///')[2]

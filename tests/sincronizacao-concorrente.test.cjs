@@ -28,6 +28,7 @@ async function abrir() {
   };
   const jsx=(_type,props)=>({type:_type,props});
   const window={location:{href:'http://127.0.0.1:5173/'},history:{replaceState(){}},
+    document:{visibilityState:'visible',addEventListener(name,fn){events.set(name,fn);},removeEventListener(name){events.delete(name);}},
     setInterval(fn){poll=fn;return 1;},clearInterval(){},setTimeout(){return 1;},
     addEventListener(name,fn){events.set(name,fn);},removeEventListener(name){events.delete(name);}};
   const requireMock=name=>{
@@ -55,8 +56,18 @@ async function abrir() {
   render();await flush();render();
   assert.equal(states[0],'ready');
   return {states,render,remote,setResponder:fn=>{responder=fn;},
+    visibility(value){window.document.visibilityState=value;events.get('visibilitychange')?.();},
     poll:()=>poll(),edit(data){local=copy(data);observer();},current:()=>copy(local)};
 }
+
+test('aba oculta suspende consultas e retoma a leitura ao voltar',async()=>{
+  const app=await abrir();let calls=0;
+  app.setResponder(async()=>{calls++;return copy(app.remote);});
+  app.visibility('hidden');app.poll();await flush();
+  assert.equal(calls,0);
+  app.visibility('visible');await flush();
+  assert.equal(calls,1);
+});
 
 test('leitura antiga não desfaz gravação concluída enquanto a resposta estava em trânsito',async()=>{
   const app=await abrir(), read=pending(), write=pending();

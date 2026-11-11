@@ -3,9 +3,9 @@
 Aplicação para gestão do elenco, fichas, sábados, equipes, súmulas, rankings e arquivos do SSW.
 
 - Operação: leia GUIA_SSW.md.
-- Hospedagem na Oracle Cloud: leia [deploy/oracle/README.md](deploy/oracle/README.md).
-- Alternativa no Render: leia PUBLICAR_RENDER.md e use render.yaml.
-- React/TypeScript/Vite no frontend; FastAPI/SQLite no backend; arquivos em disco persistente.
+- Hospedagem gratuita proposta: [Render + Neon](PUBLICAR_GRATUITO.md), com PostgreSQL e arquivos privados externos.
+- O render.yaml usa serviço Free, sem disco pago ou banco Render.
+- React/TypeScript/Vite no frontend; FastAPI no backend; SQLite local ou PostgreSQL e armazenamento S3 na nuvem.
 - Acesso local direto e acesso externo por convite privado, sem formulário de senha.
 - Dados pessoais, bancos, mídia privada, ambientes e backups não fazem parte do código.
 

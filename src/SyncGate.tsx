@@ -121,9 +121,15 @@ export function SyncGate({children}:{children:ReactNode}) {
   useEffect(()=>{
     if (view!=='ready') return;
     const unsub=observarMudancas(()=>void sync());
-    const timer=window.setInterval(()=>void refresh(),12_000);
+    const timer=window.setInterval(()=>{
+      if(window.document?.visibilityState==='hidden')return;
+      void refresh();
+    },12_000);
     const onFocus=()=>void refresh();window.addEventListener('focus',onFocus);
-    return ()=>{unsub();window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
+    const onVisible=()=>{if(window.document?.visibilityState==='visible')void refresh();};
+    window.document?.addEventListener('visibilitychange',onVisible);
+    return ()=>{unsub();window.clearInterval(timer);window.removeEventListener('focus',onFocus);
+      window.document?.removeEventListener('visibilitychange',onVisible);};
   },[view]);
 
   async function refresh(){

@@ -6,12 +6,12 @@ from datetime import datetime
 from pathlib import Path
 import shutil
 
-FOLDERS = ('src', 'public', 'backend/egidius_api', 'backend/tests', 'tests', 'tools')
+FOLDERS = ('src', 'public', 'backend/egidius_api', 'backend/tests', 'tests', 'tools', 'deploy')
 REQUIRED = ('Dockerfile', '.dockerignore', 'render.yaml', 'package.json',
             'package-lock.json', 'backend/requirements.txt',
             'backend/requirements.lock.txt', 'backend/requirements-dev.txt',
             'backend/requirements-dev.lock.txt', 'index.html', 'tsconfig.json', 'vite.config.ts')
-OPTIONAL = ('.gitignore', 'README.md', 'GUIA_SSW.md', 'PUBLICAR_RENDER.md',
+OPTIONAL = ('.gitignore', 'README.md', 'GUIA_SSW.md', 'PUBLICAR_RENDER.md', 'PUBLICAR_GRATUITO.md',
             'COMO_ABRIR_NO_MAC.md', 'RELATORIO_ETAPA_01.md', 'egidius.sh',
             'iniciar-mac.sh', 'backend/backup-completo.py', 'backend/backup-mac.sh',
             'backend/setup-mac.sh', 'backend/start-mac.sh', 'tsconfig.node.json',

@@ -11,6 +11,9 @@ from .backup_format import validar_banco
 
 
 def preparar_volume():
+    if os.getenv('EGIDIUS_DEPLOYMENT_MODE') == 'neon':
+        preparar_nuvem()
+        return
     if os.getenv('EGIDIUS_REQUIRE_PERSISTENCE', '').lower() != 'true':
         return
     mounted = os.getenv('EGIDIUS_DATA_VOLUME', '')
@@ -48,3 +51,45 @@ def preparar_volume():
         os.replace(temporary, database)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def preparar_nuvem():
+    import tempfile
+    from sqlalchemy.engine import make_url
+    from .db import engine_for_url
+    from .storage import get_storage
+    from .portability import has_ready_database, restore_empty
+    address = os.environ.get('EGIDIUS_DATABASE_URL', '')
+    parsed = make_url(address)
+    testing = os.getenv('EGIDIUS_STORAGE_TESTING') == 'true' and parsed.host in ('127.0.0.1', 'localhost')
+    if (not parsed.drivername.startswith('postgresql') or
+            (not testing and parsed.query.get('sslmode') not in ('require', 'verify-full'))):
+        raise RuntimeError('Configure PostgreSQL externo com TLS obrigatório.')
+    if (os.getenv('EGIDIUS_STORAGE_BACKEND') != 's3' or
+            os.getenv('EGIDIUS_LOCAL_ACCESS') != 'false' or
+            os.getenv('EGIDIUS_SECURE_COOKIES') != 'true' or
+            not 40 <= len(os.getenv('EGIDIUS_PUBLIC_INVITE_TOKEN', '')) <= 300):
+        raise RuntimeError('A nuvem exige armazenamento S3 privado e acesso HTTPS por convite.')
+    storage = get_storage()
+    storage.check()
+    engine = engine_for_url(address)
+    try:
+        if has_ready_database(engine):
+            return
+        encoded = os.getenv('EGIDIUS_INITIAL_DATABASE_B64', '')
+        expected = os.getenv('EGIDIUS_INITIAL_DATABASE_SHA256', '')
+        if not encoded or not expected or len(encoded) > 4 * 1024**2:
+            raise RuntimeError('A primeira carga não foi fornecida. Nenhuma base vazia será publicada.')
+        with gzip.GzipFile(fileobj=io.BytesIO(base64.b64decode(encoded, validate=True))) as compressed:
+            raw = compressed.read(32 * 1024**2 + 1)
+        if len(raw) > 32 * 1024**2 or hashlib.sha256(raw).hexdigest() != expected:
+            raise RuntimeError('A primeira carga não passou na verificação de integridade.')
+        with tempfile.TemporaryDirectory(prefix='egidius-seed-') as folder:
+            path = Path(folder) / 'origem.sqlite3'
+            path.write_bytes(raw)
+            path.chmod(0o600)
+            if validar_banco(path):
+                raise RuntimeError('Esta base contém mídia. Use o migrador de backup completo antes de iniciar.')
+            restore_empty(path, engine, storage)
+    finally:
+        engine.dispose()

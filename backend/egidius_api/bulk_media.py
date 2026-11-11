@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from .db import AthleteProfile, MediaAsset, State, utcnow
 from .media import IMAGE_LIMIT, STORAGE_QUOTA, root_dir, sniff_mime
+from .storage import get_storage, reserve_quota
 
 ZIP_MAX = 80 * 1024 * 1024
 EXPANDED_MAX = 180 * 1024 * 1024
@@ -232,7 +233,8 @@ def bulk_media_router(session_auth, check_csrf, get_db):
         lock = folder / '.processing'
         try: lock.mkdir(mode=0o700)
         except FileExistsError: raise HTTPException(409, 'Lote já está em processamento.')
-        moved: list[Path] = []
+        moved: list[str] = []
+        storage = get_storage()
         committed = False
         try:
             state, names, _ = roster(db)
@@ -245,10 +247,7 @@ def bulk_media_router(session_auth, check_csrf, get_db):
             if any(item.item_id not in rows or item.athlete_id not in names for item in req.items):
                 raise HTTPException(409, 'Atleta ou imagem inexistente. Reveja o vínculo.')
             total = sum(rows[item.item_id]['size'] for item in req.items)
-            target_dir = root_dir()
-            used = sum(p.stat().st_size for p in target_dir.iterdir() if p.is_file() and not p.name.startswith('.'))
-            if used + total > STORAGE_QUOTA:
-                raise HTTPException(507, 'Espaço de mídia insuficiente para este lote.')
+            reserve_quota(db, total, STORAGE_QUOTA)
             for selected in req.items:
                 info = rows[selected.item_id]
                 src = folder / info['stored_stage']
@@ -260,15 +259,12 @@ def bulk_media_router(session_auth, check_csrf, get_db):
                     raise HTTPException(409, 'Arquivo alterado. Envie um novo ZIP.')
                 uid = uuid.uuid4().hex
                 extension = Path(info['stored_stage']).suffix
-                dest = target_dir / f'{uid}{extension}'
-                # Cópia exclusiva, nunca sobrescreve outra foto já enviada.
-                with src.open('rb') as input_file, dest.open('xb') as output_file:
-                    moved.append(dest)
-                    os.chmod(dest, 0o600)
-                    shutil.copyfileobj(input_file, output_file, length=128 * 1024)
+                name = f'{uid}{extension}'
+                storage.put_file(name, src, info['mime_type'])
+                moved.append(name)
                 db.add(MediaAsset(id=uid, scope='athlete', kind=selected.kind,
                     athlete_id=selected.athlete_id, round_id=None, match_id=None,
-                    caption='', original_name=info['filename'], stored_name=dest.name,
+                    caption='', original_name=info['filename'], stored_name=name,
                     mime_type=info['mime_type'], size=info['size'], actor=sess.username,
                     created_at=utcnow()))
             db.commit()
@@ -277,7 +273,9 @@ def bulk_media_router(session_auth, check_csrf, get_db):
         finally:
             if not committed:
                 db.rollback()
-                for dest in moved: dest.unlink(missing_ok=True)
+                for name in moved:
+                    try: storage.remove(name)
+                    except Exception: pass
                 shutil.rmtree(lock, ignore_errors=True)
             else:
                 shutil.rmtree(folder, ignore_errors=True)

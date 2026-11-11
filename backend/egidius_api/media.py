@@ -11,12 +11,13 @@ from typing import Literal
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session as DbSession
 
-from .db import MediaAsset, State, utcnow
+from .db import MediaAsset, State, PendingMediaDeletion, utcnow
+from .storage import get_storage, reserve_quota, cleanup_deletions
 
 MEDIA_ROOT = Path(__file__).resolve().parents[1] / 'var' / 'media'
 IMAGE_LIMIT = 12 * 1024 * 1024
@@ -181,21 +182,22 @@ def media_router(session_auth, check_csrf, get_db):
                     raise
                 except Exception:
                     raise HTTPException(422, 'O arquivo não é um PDF válido ou está danificado.')
-            # Cota de espaço simples para ambientes locais: proteção contra crescimento irrestrito.
-            occupied = sum(p.stat().st_size for p in target_dir.iterdir() if p.is_file() and not p.name.startswith('.'))
-            if occupied + total > STORAGE_QUOTA:
-                raise HTTPException(507, 'Espaço reservado para mídia esgotado. Faça backup antes de liberar espaço.')
+            reserve_quota(db, total, STORAGE_QUOTA)
             identifier = uuid.uuid4().hex
-            saved = target_dir / (identifier + extension)
-            tmp_path.replace(saved)
+            stored_name = identifier + extension
+            storage = get_storage()
+            storage.put_file(stored_name, tmp_path, mime)
             db.add(MediaAsset(id=identifier, scope=scope, kind=kind, athlete_id=athlete_id,
                               round_id=round_id, match_id=match_id, caption=caption.strip(),
-                              original_name=source_name, stored_name=saved.name, mime_type=mime,
+                              original_name=source_name, stored_name=stored_name, mime_type=mime,
                               size=total, actor=_session.username, created_at=utcnow()))
             try:
                 db.commit()
             except Exception:
-                db.rollback(); saved.unlink(missing_ok=True); raise
+                db.rollback()
+                try: storage.remove(stored_name)
+                except Exception: pass
+                raise
             item = db.get(MediaAsset, identifier)
             return JSONResponse(serialize(item), status_code=201, headers={'Cache-Control': 'no-store'})
         finally:
@@ -206,6 +208,11 @@ def media_router(session_auth, check_csrf, get_db):
         row = db.get(MediaAsset, media_id)
         if not row:
             raise HTTPException(404, 'Arquivo não encontrado.')
+        storage = get_storage()
+        if storage.remote:
+            return RedirectResponse(storage.signed_url(row.stored_name, row.mime_type, row.original_name,
+                                     document=row.kind == 'document'), status_code=307,
+                                    headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})
         path = root_dir() / row.stored_name
         if path.name != row.stored_name or not path.is_file():
             raise HTTPException(404, 'Arquivo indisponível no servidor.')
@@ -233,9 +240,12 @@ def media_router(session_auth, check_csrf, get_db):
         row = db.get(MediaAsset, media_id)
         if not row: raise HTTPException(404, 'Arquivo não encontrado.')
         name = row.stored_name
+        # Não apague o objeto se a confirmação SQL falhar.
+        db.add(PendingMediaDeletion(stored_name=name, size=row.size))
         db.delete(row)
         db.commit()
-        (root_dir() / name).unlink(missing_ok=True)
+        cleanup_deletions(db)
+        db.commit()
         return {'ok': True}
 
     return router

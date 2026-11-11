@@ -18,12 +18,26 @@ jobs:
     name: API e preservacao dos dados
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: egidius_ci
+          POSTGRES_PASSWORD: somente-teste-isolado
+          POSTGRES_DB: egidius_ci
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U egidius_ci -d egidius_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PYTHONPATH: backend
       EGIDIUS_DATABASE_URL: sqlite:////tmp/egidius-ci.sqlite3
       EGIDIUS_MEDIA_DIR: /tmp/egidius-ci-media
       EGIDIUS_LOCAL_ACCESS: "true"
       EGIDIUS_SECURE_COOKIES: "false"
+      EGIDIUS_TEST_POSTGRES_URL: postgresql+psycopg://egidius_ci:somente-teste-isolado@127.0.0.1:15432/egidius_ci
+      EGIDIUS_TEST_S3_ENDPOINT: http://127.0.0.1:19000
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,10 +49,17 @@ jobs:
           cache-dependency-path: backend/requirements-dev.lock.txt
       - name: Instalar dependencias verificadas
         run: python -m pip install --require-hashes -r backend/requirements-dev.lock.txt
+      - name: Iniciar armazenamento S3 isolado para testes
+        run: |
+          docker run --detach --name egidius-s3-ci --publish 127.0.0.1:19000:9000 --env MINIO_ROOT_USER=egidius-test --env MINIO_ROOT_PASSWORD=somente-testes-locais-123 quay.io/minio/minio server /data
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 --max-time 3 http://127.0.0.1:19000/minio/health/live
       - name: Testar API, importacoes, backup e restauracao
         run: python -m pytest backend/tests -q
       - name: Conferir primeira carga privada para Oracle
         run: python -m unittest discover -s deploy/oracle/tests -v
+      - name: Encerrar armazenamento do teste
+        if: always()
+        run: docker rm --force egidius-s3-ci 2>/dev/null || true
 
   frontend:
     name: Interface e compilacao

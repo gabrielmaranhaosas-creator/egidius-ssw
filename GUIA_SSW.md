@@ -47,4 +47,6 @@ Para aplicar, pare primeiro o EGIDIUS com `bash egidius.sh parar` e execute o me
 
 ## Responsabilidades da equipe
 
-O SSW administra nomes, fichas, documentos, mídia, presenças, escalações e resultados pela interface. O responsável pela hospedagem mantém o serviço contratado, o domínio se houver, o acesso ao repositório e as cópias de segurança. O acesso por convite é coletivo; trate o convite como uma credencial privada.
+O SSW administra nomes, fichas, documentos, mídia, presenças, escalações e resultados pela interface. O responsável pela hospedagem mantém as contas dos provedores, o domínio se houver, o acesso ao repositório e as cópias de segurança. O acesso por convite é coletivo; trate o convite como uma credencial privada.
+
+Na hospedagem gratuita proposta, o primeiro acesso após um período sem uso pode levar aproximadamente um minuto. O banco e os arquivos ficam em armazenamento externo; fechar a aplicação ou reiniciar o serviço não os remove. A disponibilidade definitiva só é confirmada após a publicação e os testes no endereço real.
