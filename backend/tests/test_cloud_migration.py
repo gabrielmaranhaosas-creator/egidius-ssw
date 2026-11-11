@@ -145,3 +145,36 @@ def test_integracao_s3_persiste_apos_troca_do_disco_temporario(source, tmp_path,
         listed = storage.client.list_objects_v2(Bucket=bucket).get('Contents', [])
         for obj in listed: storage.client.delete_object(Bucket=bucket, Key=obj['Key'])
         storage.client.delete_bucket(Bucket=bucket)
+
+
+def test_primeira_carga_postgres_recusa_vazio_e_reinicio_nao_sobrescreve(source, tmp_path, monkeypatch, postgres_url):
+    from egidius_api.bootstrap import preparar_volume
+    import egidius_api.storage as storage_module
+    source_db, _ = source
+    with sqlite3.connect(source_db) as con:
+        con.execute('DELETE FROM media_assets')
+    raw = source_db.read_bytes()
+    monkeypatch.setenv('EGIDIUS_DEPLOYMENT_MODE', 'neon')
+    monkeypatch.setenv('EGIDIUS_STORAGE_BACKEND', 's3')
+    monkeypatch.setenv('EGIDIUS_STORAGE_TESTING', 'true')
+    monkeypatch.setenv('EGIDIUS_DATABASE_URL', postgres_url)
+    monkeypatch.setenv('EGIDIUS_LOCAL_ACCESS', 'false')
+    monkeypatch.setenv('EGIDIUS_SECURE_COOKIES', 'true')
+    monkeypatch.setenv('EGIDIUS_PUBLIC_INVITE_TOKEN', 'convite-somente-para-testes-' * 3)
+    monkeypatch.setattr(storage_module, 'get_storage', lambda: LocalStorage(tmp_path / 'cloud-media'))
+    monkeypatch.delenv('EGIDIUS_INITIAL_DATABASE_B64', raising=False)
+    with pytest.raises(RuntimeError, match='Nenhuma base vazia'): preparar_volume()
+    monkeypatch.setenv('EGIDIUS_INITIAL_DATABASE_B64', base64.b64encode(gzip.compress(raw)).decode())
+    monkeypatch.setenv('EGIDIUS_INITIAL_DATABASE_SHA256', hashlib.sha256(raw).hexdigest())
+    preparar_volume()
+    monkeypatch.delenv('EGIDIUS_INITIAL_DATABASE_B64')
+    monkeypatch.delenv('EGIDIUS_INITIAL_DATABASE_SHA256')
+    preparar_volume()
+    engine = engine_for_url(postgres_url)
+    try:
+        with engine.connect() as con:
+            assert con.execute(text('SELECT revision FROM state WHERE id=1')).scalar_one() == 1
+            assert con.execute(text('SELECT COUNT(*) FROM users')).scalar_one() == 1
+    finally:
+        engine.dispose()
+    assert source_db.read_bytes() == raw
