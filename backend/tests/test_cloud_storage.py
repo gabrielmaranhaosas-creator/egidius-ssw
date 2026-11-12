@@ -22,7 +22,6 @@ def test_storage_nao_aceita_caminhos_ou_http(s3):
 
 def test_bucket_publico_e_recusado(s3):
     with Stubber(s3.client) as stub:
-        stub.add_response('head_bucket', {}, {'Bucket': 'privado'})
         stub.add_response('get_bucket_acl', {'Grants': [
             {'Grantee': {'Type': 'Group', 'URI': 'http://acs.amazonaws.com/groups/global/AllUsers'}, 'Permission': 'READ'}
         ]}, {'Bucket': 'privado'})
@@ -49,20 +48,20 @@ def test_download_integro_e_falha_sem_vazar_resposta_sdk(s3, tmp_path):
                           {'Bucket': 'privado', 'Key': 'media/a.pdf'})
         s3.download('a.pdf', tmp_path / 'copiado', 3)
         assert (tmp_path / 'copiado').read_bytes() == b'abc'
-        stub.add_client_error('head_bucket', service_error_code='AccessDenied',
+        stub.add_client_error('get_bucket_acl', service_error_code='AccessDenied',
                               service_message='SEGREDO_NAO_DEVE_APARECER', http_status_code=403)
         with pytest.raises(HTTPException) as failure: s3.check()
         assert failure.value.status_code == 503
         assert 'SEGREDO' not in str(failure.value.detail)
-        assert 'HeadBucket: AccessDenied' in failure.value.detail
+        assert 'GetBucketAcl: AccessDenied' in failure.value.detail
 
 
 def test_diagnostico_nao_repete_codigo_desconhecido_do_provedor(s3):
     with Stubber(s3.client) as stub:
-        stub.add_client_error('head_bucket', service_error_code='SEGREDO_EM_CODIGO',
+        stub.add_client_error('get_bucket_acl', service_error_code='SEGREDO_EM_CODIGO',
                               service_message='SEGREDO_EM_MENSAGEM', http_status_code=403)
         with pytest.raises(HTTPException) as failure: s3.check()
-        assert 'HeadBucket: StorageError' in failure.value.detail
+        assert 'GetBucketAcl: StorageError' in failure.value.detail
         assert 'SEGREDO' not in failure.value.detail
 
 
