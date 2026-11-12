@@ -120,7 +120,8 @@ class S3Storage:
 
     def check(self):
         with self.errors():
-            self.client.head_bucket(Bucket=self.bucket)
+            # GET também comprova existência/acesso e conserva o código S3 de erro;
+            # HEAD descarta o corpo e reduz falhas distintas a um 403 genérico.
             acl = self.client.get_bucket_acl(Bucket=self.bucket)
             for grant in acl.get('Grants', []):
                 uri = grant.get('Grantee', {}).get('URI', '')
