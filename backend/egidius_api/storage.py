@@ -67,8 +67,14 @@ class S3Storage:
         if ((parsed.scheme != 'https' and not local_test) or not parsed.hostname
                 or parsed.username or parsed.password or parsed.query or parsed.fragment):
             raise ValueError('O armazenamento remoto exige endpoint HTTPS.')
-        if not bucket or not access or not secret or not region:
-            raise ValueError('Configure todas as credenciais do armazenamento privado.')
+        missing = [key for key, value in (
+            ('EGIDIUS_S3_BUCKET', bucket),
+            ('EGIDIUS_S3_ACCESS_KEY_ID', access),
+            ('EGIDIUS_S3_SECRET_ACCESS_KEY', secret),
+            ('EGIDIUS_S3_REGION', region),
+        ) if not value]
+        if missing:
+            raise ValueError('Configuração do armazenamento ausente: ' + ', '.join(missing))
         if not re.fullmatch(r'[a-zA-Z0-9/_-]{0,160}', prefix) or '..' in prefix:
             raise ValueError('Prefixo de armazenamento inválido.')
         self.bucket = bucket
