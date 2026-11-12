@@ -43,7 +43,9 @@ cd "$HOME/Downloads/EGIDIUS-2"
 python3 tools/restaurar_backup.py "/caminho/do/EGIDIUS_BACKUP_COMPLETO.zip"
 ```
 
-Para aplicar, pare primeiro o EGIDIUS com `bash egidius.sh parar` e execute o mesmo comando acrescentando `--aplicar`. A rotina confere banco e mídia, bloqueia serviços ativos e conserva a cópia anterior. Na hospedagem, o procedimento deve ser executado em manutenção, diretamente no volume persistente. Nunca copie apenas um SQLite por cima de uma aplicação em execução.
+Para aplicar na instalação local do Mac, pare primeiro o EGIDIUS com `bash egidius.sh parar` e execute o mesmo comando acrescentando `--aplicar`. A rotina confere banco e mídia, bloqueia serviços ativos e conserva a cópia anterior. Nunca copie apenas um SQLite por cima de uma aplicação em execução.
+
+Na hospedagem Render Free + Neon, o banco é PostgreSQL e os arquivos ficam no armazenamento privado externo. O comando `restaurar_backup.py` acima é destinado à instalação local; ele não restaura essa hospedagem. Para recuperação na nuvem, siga `PUBLICAR_GRATUITO.md`: confira o ZIP e use `tools/migrar_nuvem.py` para restaurá-lo em um banco novo e vazio, com armazenamento privado separado. Valide os dados e o funcionamento nesse destino antes de reconfigurar o serviço Render. Preserve o ambiente anterior até concluir a conferência.
 
 ## Responsabilidades da equipe
 
