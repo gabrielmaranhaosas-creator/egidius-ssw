@@ -54,6 +54,16 @@ def test_download_integro_e_falha_sem_vazar_resposta_sdk(s3, tmp_path):
         with pytest.raises(HTTPException) as failure: s3.check()
         assert failure.value.status_code == 503
         assert 'SEGREDO' not in str(failure.value.detail)
+        assert 'HeadBucket: AccessDenied' in failure.value.detail
+
+
+def test_diagnostico_nao_repete_codigo_desconhecido_do_provedor(s3):
+    with Stubber(s3.client) as stub:
+        stub.add_client_error('head_bucket', service_error_code='SEGREDO_EM_CODIGO',
+                              service_message='SEGREDO_EM_MENSAGEM', http_status_code=403)
+        with pytest.raises(HTTPException) as failure: s3.check()
+        assert 'HeadBucket: StorageError' in failure.value.detail
+        assert 'SEGREDO' not in failure.value.detail
 
 
 def test_armazenamento_local_preserva_arquivo_existente(tmp_path):

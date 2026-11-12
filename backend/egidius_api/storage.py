@@ -95,9 +95,28 @@ class S3Storage:
         from botocore.exceptions import BotoCoreError, ClientError
         try:
             yield
-        except (BotoCoreError, ClientError):
-            # Respostas do SDK podem conter endpoint ou material de autenticação.
-            raise HTTPException(503, 'Armazenamento temporariamente indisponível. Tente novamente.') from None
+        except ClientError as error:
+            # Só códigos conhecidos: mensagens livres do provedor podem conter segredos.
+            code = error.response.get('Error', {}).get('Code', '')
+            allowed = {'AccessDenied', 'InvalidAccessKeyId', 'SignatureDoesNotMatch',
+                       'NoSuchBucket', 'NoSuchKey', 'InvalidToken', 'ExpiredToken',
+                       'RequestTimeTooSkewed', 'AuthorizationHeaderMalformed',
+                       'InvalidRequest', 'NotImplemented', 'InternalError',
+                       'ServiceUnavailable', 'SlowDown', '400', '401', '403',
+                       '404', '409', '429', '500', '501', '502', '503', '504'}
+            code = code if code in allowed else 'StorageError'
+            operation = error.operation_name
+            if operation not in {'HeadBucket', 'GetBucketAcl', 'HeadObject',
+                                 'GetObject', 'PutObject', 'DeleteObject'}:
+                operation = 'S3'
+            raise HTTPException(503, f'Armazenamento indisponível ({operation}: {code}). Tente novamente.') from None
+        except BotoCoreError as error:
+            kind = type(error).__name__
+            if kind not in {'EndpointConnectionError', 'ConnectTimeoutError',
+                            'ReadTimeoutError', 'SSLError', 'ConnectionClosedError',
+                            'ProxyConnectionError'}:
+                kind = 'StorageConnectionError'
+            raise HTTPException(503, f'Falha de comunicação com o armazenamento ({kind}). Tente novamente.') from None
 
     def check(self):
         with self.errors():
