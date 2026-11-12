@@ -1,0 +1,57 @@
+/* Fluxo do sábado: uma etapa visível por vez, sem remover dados nem ações. */
+.ux-organizar [hidden]{display:none!important}
+.ux-etapas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:20px 0 12px}
+.ux-etapas button{min-height:52px;padding:12px 10px;border:1px solid #cba985;border-radius:12px;background:#fffaf1;color:#593422;font-size:16px;font-weight:800;cursor:pointer}
+.ux-etapas button[aria-current=step]{background:#6a3523;color:#fff9eb;border-color:#6a3523;box-shadow:0 3px 10px #512c2020}
+.ux-active-date{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-radius:10px;background:#fff1cc;color:#58371e;font-weight:750;line-height:1.5}
+.ux-organizar .ssw-sabado-proximo{padding:12px 16px;margin:12px 0}
+.ux-organizar .ssw-sabado-proximo span{display:none}
+.ux-organizar .roster-section{margin-top:18px}
+.ux-organizar .rounds-toolbar{align-items:stretch}
+.ux-organizar .rounds-select-label{order:0;flex:1}
+.ux-create-round{order:1;border:1px solid #ceb398;border-radius:10px;background:#fffaf2;min-width:200px;color:#63432d}
+.ux-create-round>summary{padding:14px;min-height:48px;font-weight:750;cursor:pointer}
+.ux-create-round>div{display:grid;gap:12px;padding:12px}
+.ux-create-round input{width:100%}
+.ux-organizar .rounds-head>div>p:last-child{max-width:640px}
+.ux-organizar .rounds-selected{margin-top:16px}
+.ux-organizar .mobile-match-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px}
+.ux-organizar .match-editor--collapsed .match-editor-details{display:none!important}
+.ux-organizar .team-board-footer{position:sticky;bottom:12px;z-index:8;border:1px solid #caa77e;border-radius:12px;padding:14px;background:#fffaf0;box-shadow:0 -3px 15px #4c2a191a}
+.ux-stage-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0;padding:18px;border-radius:14px;background:#fff9eb;color:#573923}
+.ux-stage-actions p{margin:0;line-height:1.6}
+.ux-stage-actions button,.ux-completed button,.ux-player-swap button,.ux-draft-note button,.egc8-unready button,.express-finished button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:0;border-radius:10px;padding:12px 16px;background:#793f26;color:#fff9ed;font-size:15px;font-weight:800;cursor:pointer;white-space:normal}
+.ux-maintenance{margin:18px 0;border:1px solid #d7b999;border-radius:12px;background:#fffaf3;color:#68442f;overflow:hidden}
+.ux-maintenance>summary{min-height:52px;padding:15px;font-weight:750;cursor:pointer}
+.ux-maintenance>.quick-history{position:static!important;box-shadow:none;margin:12px}
+.ux-maintenance>.eg-data-actions{margin:12px}
+.ux-draft-note{padding:12px 14px;background:#fff0cd;color:#69411d;border:1px solid #ddbc76;border-radius:10px;line-height:1.7}
+.ux-draft-note button{margin:6px;font-size:14px}
+.ux-player-swap{display:grid;grid-template-columns:1fr 1fr;gap:12px;border:1px solid #d9bca0;border-radius:12px;padding:16px;margin:16px 0;background:#fff}
+.ux-player-swap legend{font-size:16px;font-weight:800;color:#643c23;padding:0 6px}
+.ux-player-swap label{display:grid;gap:8px;font-weight:700;min-width:0}
+.ux-player-swap select{width:100%;min-width:0;min-height:48px;border:1px solid #c9ab90;background:#fffdf8;color:#3c2b21;border-radius:8px;padding:10px;font-size:16px}
+.ux-player-swap p{grid-column:1/-1;margin:0;line-height:1.6}
+.ux-player-swap button{grid-column:1/-1}
+.ux-completed{padding:16px;border:1px solid #94b69a;background:#eef8ed;border-radius:12px;color:#285837;line-height:1.7}
+.ux-completed button{margin:8px}
+.ux-keepers-required{margin:20px 0;padding:18px;border:1px solid #c9ad87;background:#fff7e7;border-radius:14px;color:#573720}
+.ux-keepers-required h3{font-size:20px;margin:0 0 8px}
+.ux-keepers-required>p{font-size:14px;line-height:1.6;margin:0 0 12px}
+.ux-keepers-required .express-keepers{margin:0;border:0;padding:0}
+.ssw-conferencia{scroll-margin-top:100px}
+.ssw-conferencia-conteudo li{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ssw-conferencia-conteudo li span{flex:1;min-width:160px}
+.ssw-conferencia-conteudo li button{min-height:44px;border:1px solid #a86c37;border-radius:8px;background:#fffdf8;color:#76401f;padding:10px 14px;font:inherit;font-weight:750;cursor:pointer}
+.ux-organizar button:disabled,.ux-player-swap button:disabled,.express-create-button:disabled{opacity:.48;cursor:not-allowed}
+.ux-etapas button:focus-visible,.ux-stage-actions button:focus-visible,.ux-player-swap button:focus-visible,.ssw-conferencia button:focus-visible{outline:3px solid #d97a22;outline-offset:3px}
+@media(max-width:600px){
+ .ux-etapas{gap:6px}.ux-etapas button{font-size:14px;padding:10px 4px;min-height:50px}
+ .ux-stage-actions{flex-direction:column;align-items:stretch}.ux-stage-actions button{width:100%}
+ .ux-player-swap{grid-template-columns:1fr;padding:12px}.ux-player-swap p,.ux-player-swap button{grid-column:auto}
+ .ux-active-date{font-size:14px;padding:12px}.ux-keepers-required{padding:14px}
+ .ux-organizar .team-board-footer{bottom:82px;padding:10px}
+ .ux-organizar .rounds-toolbar{padding:14px}.ux-organizar .rounds-head{margin-bottom:12px}
+ .sync-banner:has(button) button{min-width:44px;min-height:44px}
+}
+@media(max-height:500px){.ux-organizar .team-board-footer{position:static}}

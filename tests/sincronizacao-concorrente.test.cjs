@@ -39,6 +39,7 @@ async function abrir() {
       adotarDadosDoServidor:data=>{local=copy(data);},
       observarMudancas:fn=>{observer=fn;return ()=>{observer=null;};},exportarBackup(){}};
     if(name==='./Acesso')return {criarAcessoSemSenha:()=>async()=>({authenticated:true,username:'operador_local',csrf:'teste'})};
+    if(name==='./MontagemDrafts')return {definirOperadorMontagem(){},podeSairDaMontagem:()=>true,useMontagensPendentes:()=>0};
     if(name.endsWith('.css'))return {};
     throw Error('Dependência não esperada: '+name);
   };

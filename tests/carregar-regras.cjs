@@ -6,12 +6,14 @@ const { webcrypto } = require('node:crypto');
 const ts = require('typescript');
 const src = path.resolve(__dirname, '../src');
 
-function criarCarregador(inicial = { versao: 5, jogadores: [], rodadas: [] }) {
+function criarCarregador(inicial = { versao: 5, jogadores: [], rodadas: [] }, armazenamento) {
   const cache = new Map();
-  const storage = new Map([['egidius.v05.clube', JSON.stringify(inicial)]]);
+  const storage = armazenamento ?? new Map([['egidius.v05.clube', JSON.stringify(inicial)]]);
   const listeners = new Map();
   const window = {
     localStorage: {
+      get length() { return storage.size; },
+      key: index => [...storage.keys()][index] ?? null,
       getItem: key => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
       removeItem: key => storage.delete(key),

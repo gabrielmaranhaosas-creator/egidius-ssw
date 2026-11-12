@@ -58,6 +58,16 @@ export function proximoNomeTime(equipes: EquipeRodada[]): string {
   return `Time ${numero}`;
 }
 
+/** Troca atômica: mantém capacidade, ordem das vagas e todos os demais atletas. */
+export function trocarJogadores(equipes: EquipeRodada[], presentes: string[], a: string, b: string): EquipeRodada[] {
+  if (!a || !b || a === b) throw new Error('Escolha dois jogadores diferentes.');
+  if (!presentes.includes(a) || !presentes.includes(b)) throw new Error('Confirme a presença dos dois jogadores.');
+  const origemA = equipes.find(e => e.atletas.includes(a));
+  const origemB = equipes.find(e => e.atletas.includes(b));
+  if (!origemA || !origemB || origemA.id === origemB.id) throw new Error('Escolha jogadores de times diferentes.');
+  return equipes.map(e => ({ ...e, atletas: e.atletas.map(id => id === a ? b : id === b ? a : id) }));
+}
+
 /** Confere a formação atual, a presença e o cadastro dentro da transação do store. */
 export function salvarMontagem(dados: DadosSSW, rodadaId: string, origem: string, equipes: EquipeRodada[]): DadosSSW {
   const rodada = dados.rodadas.find(r => r.id === rodadaId);

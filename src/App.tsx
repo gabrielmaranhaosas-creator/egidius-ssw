@@ -11,6 +11,9 @@ import { ImportPage } from './ImportPage';
 import { ViagemPage } from './ViagemPage';
 import { classificar, dataFormatada, resumoSSW, useDadosSSW } from './SSWStore';
 import type { Estatistica } from './SSWStore';
+import { escolherSabadoAtivo, guardarSabadoAtivo, lerSabadoAtivo } from './ActiveRound';
+import { podeSairDaMontagem, primeiraMontagemPendente } from './MontagemDrafts';
+import './styles/ssw-fluxo-sabado.css';
 import './RoundsManager.css';
 import './styles/ssw-lancamento-09f2.css';
 import {
@@ -25,7 +28,7 @@ const sections: { id: Screen; label: string; Icon: ElementType }[] = [
   { id: 'campo', label: 'Início', Icon: Home },
   { id: 'expressa', label: 'Súmula', Icon: Target },
   { id: 'inicio', label: 'Visão geral', Icon: Home },
-  { id: 'rodada', label: 'Sábado completo', Icon: CircleDot },
+  { id: 'rodada', label: 'Organizar sábado', Icon: CircleDot },
   { id: 'viagem', label: 'VIAGEM - SSW', Icon: BusFront },
   { id: 'atletas', label: 'Jogadores', Icon: UsersRound },
   { id: 'importar', label: 'Importar e arquivos', Icon: FileUp },
@@ -55,7 +58,7 @@ function RankingList({ mode, stats, full = false }: { mode: RankingMode; stats: 
 }
 function App() {
   const [screen, setScreen] = useState<Screen>('campo');
-  const [campoRoundId, setCampoRoundId] = useState('');
+  const [campoRoundId, setCampoRoundId] = useState(lerSabadoAtivo);
   const [expressTarget, setExpressTarget] = useState<{rodadaId?: string; gameId?: string}>({});
   const [rodadaDestino, setRodadaDestino] = useState<{ rodadaId?: string; partidaId?: string; destino: CampoDestino } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -70,6 +73,14 @@ function App() {
   }, [moreOpen]);
   const [rankingMode, setRankingMode] = useState<RankingMode>('pontos');
   const dados = useDadosSSW();
+  const sabadoAtivo = escolherSabadoAtivo(dados.rodadas, campoRoundId);
+  function selecionarSabado(id: string) { setCampoRoundId(id); guardarSabadoAtivo(id); setRodadaDestino(null); setExpressTarget({rodadaId:id}); }
+  useEffect(() => { if (sabadoAtivo) guardarSabadoAtivo(sabadoAtivo); }, [sabadoAtivo]);
+  useEffect(() => {
+    function abrirRascunho() { abrirRodada('times', primeiraMontagemPendente()); }
+    window.addEventListener('egidius:abrir-montagem', abrirRascunho);
+    return () => window.removeEventListener('egidius:abrir-montagem', abrirRascunho);
+  });
   const stats = classificar(dados);
   const resumo = resumoSSW(dados);
   const ultimoSabado = [...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data))[0];
@@ -77,14 +88,23 @@ function App() {
     .flatMap(r => [...r.jogos].sort((a,b)=>b.numero-a.numero).map(j => ({ ...j, data: r.data })))
     .find(j => j.status === 'encerrada');
   const artilheiro = [...stats].filter(a=>a.gols>0).sort((a,b)=>b.gols-a.gols || a.nome.localeCompare(b.nome))[0];
-  function navigate(target: Screen) { setMoreOpen(false); setScreen(target); setRodadaDestino(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function navigate(target: Screen) {
+    if (!podeSairDaMontagem()) return;
+    setMoreOpen(false); setScreen(target); setRodadaDestino(null);
+    if (target === 'expressa') setExpressTarget({ rodadaId: sabadoAtivo });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
   function abrirExpressa(rodadaId?: string, gameId?: string) {
-    setMoreOpen(false); setExpressTarget({rodadaId,gameId}); setScreen('expressa');
+    if (!podeSairDaMontagem()) return;
+    const id = rodadaId || sabadoAtivo; if (id) selecionarSabado(id);
+    setMoreOpen(false); setExpressTarget({rodadaId:id,gameId}); setScreen('expressa');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   function abrirRodada(destino: CampoDestino, rodadaId?: string, partidaId?: string) {
+    if (!podeSairDaMontagem()) return;
+    const id = rodadaId || sabadoAtivo; if (id) selecionarSabado(id);
     setMoreOpen(false);
-    setRodadaDestino({ destino, rodadaId, partidaId });
+    setRodadaDestino({ destino, rodadaId:id, partidaId });
     setScreen('rodada');
   }
   useEffect(() => {
@@ -123,9 +143,9 @@ function App() {
       <div className="page">
         {screen === 'campo' && <>
           <div className="ssw-trip-launch"><div><strong>VIAGEM – SSW</strong><small>24/10/2026 · Goiânia/GO · Campo 11 × 11</small></div><button type="button" onClick={()=>navigate('viagem')}>Abrir viagem</button></div>
-          <CampoPage abrir={abrirRodada} abrirExpressa={abrirExpressa} rodadaId={campoRoundId} onRodadaChange={setCampoRoundId}/>
+          <CampoPage abrir={abrirRodada} abrirExpressa={abrirExpressa} rodadaId={sabadoAtivo} onRodadaChange={selecionarSabado}/>
         </>}
-        {screen === 'expressa' && <ExpressPage initialRoundId={expressTarget.rodadaId} initialGameId={expressTarget.gameId} abrirCompleta={(rodadaId,jogoId)=>abrirRodada('partidas',rodadaId,jogoId)}/>}
+        {screen === 'expressa' && <ExpressPage initialRoundId={expressTarget.rodadaId || sabadoAtivo} initialGameId={expressTarget.gameId} onRoundChange={selecionarSabado} organizar={(id)=>abrirRodada('times',id)} abrirCompleta={(rodadaId,jogoId)=>abrirRodada('partidas',rodadaId,jogoId)}/>}
         {screen === 'inicio' && <>
           <div className="hero"><div className="hero-grain"/><div className="hero-copy"><div className="hero-kicker">CENTRAL ESPORTIVA · SÁBADO SHOW</div><h1>EGIDIUS<span className="hero-title-dot">.</span></h1><p className="hero-caption">Rodadas, partidas, súmulas e memória do grupo.</p><div className="hero-actions"><button type="button" className="button button--sun" onClick={() => navigate('rodada')}>Gerenciar sábados <ArrowUpRight size={19}/></button><button type="button" className="button button--ghost" onClick={() => navigate('rankings')}>Ver rankings <ArrowRight size={19}/></button></div></div><div className="hero-art"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show fotografado na camisa"/></div><div className="hero-index">IDENTIDADE ORIGINAL · SSW</div></div>
           <div className="overview-row"><div><p className="eyebrow">ESTATÍSTICAS DA BASE COMPARTILHADA</p><h2>Panorama do jogo<span className="title-dot">.</span></h2></div><div className="overview-tag"><span className="tag-mini"/> DADOS SINCRONIZADOS COM SERVIDOR</div></div>
@@ -146,8 +166,8 @@ function App() {
           <footer className="page-footer">EGIDIUS · SÁBADO SHOW <span>JOGOS, HISTÓRIAS E CONFRARIA</span></footer>
         </>}
         {screen === 'rodada' && <>
-          <div className="inner-hero"><div><p className="eyebrow eyebrow--light">OPERAÇÃO EM CAMPO</p><h1>Sábado completo<span>.</span></h1><p>Cadastre jogadores, registre as chegadas, monte os times e opere as súmulas do sábado.</p></div><div className="inner-icon"><ClipboardList size={50}/></div></div>
-          <RoundsManager initialRoundId={rodadaDestino?.rodadaId} initialGameId={rodadaDestino?.partidaId}/>
+          <div className="inner-hero"><div><p className="eyebrow eyebrow--light">OPERAÇÃO EM CAMPO</p><h1>Organizar sábado<span>.</span></h1><p>Confirme os presentes, monte os times e continue para as partidas.</p></div><div className="inner-icon"><ClipboardList size={50}/></div></div>
+          <RoundsManager initialRoundId={sabadoAtivo} initialGameId={rodadaDestino?.partidaId} initialStage={rodadaDestino?.destino} onRoundChange={selecionarSabado} abrirExpressa={abrirExpressa}/>
         </>}
         {screen === 'viagem' && <ViagemPage/>}
         {screen === 'atletas' && <AthletesPage abrirCadastro={() => abrirRodada('cadastro', campoRoundId || undefined)}/>}
@@ -183,9 +203,9 @@ function App() {
       </footer>
       {moreOpen&&<>
         <button className="ssw-more-scrim" type="button" aria-label="Fechar menu Mais" onClick={()=>setMoreOpen(false)} />
-        <div className="ssw-mobile-more" id="egidius-mobile-more" role="group" aria-label="Mais opções">
+        <div className="ssw-mobile-more" id="egidius-mobile-more" role="group" aria-label="Mais opções"><button type="button" onClick={()=>navigate('atletas')}><UsersRound size={21}/><span>Jogadores</span></button>
           <button type="button" onClick={()=>navigate('viagem')}><BusFront size={21}/><span>VIAGEM - SSW</span></button>
-          <button type="button" onClick={()=>navigate('rodada')}><CircleDot size={21}/><span>Sábado completo</span></button>
+          <button type="button" onClick={()=>navigate('rodada')}><CircleDot size={21}/><span>Organizar sábado</span></button>
           <button type="button" onClick={()=>navigate('rankings')}><Trophy size={21}/><span>Ranking</span></button>
           <button type="button" onClick={()=>navigate('midia')}><Images size={21}/><span>Fotos</span></button>
           <button type="button" onClick={()=>navigate('importar')}><FileUp size={21}/><span>Importar</span></button>
@@ -199,8 +219,8 @@ function App() {
         </div>
       </>}
       <nav className="mobile-nav" aria-label="Navegação inferior">
-        {sections.filter(x=>['campo','expressa','atletas'].includes(x.id)).map(({id,Icon}) => <button type="button" onClick={()=>navigate(id)} key={id} aria-current={id===screen?'page':undefined} className={id===screen?'mobile-link mobile-link--active':'mobile-link'}><Icon size={24}/><small>{id==='campo'?'Início':id==='expressa'?'Súmula':'Jogadores'}</small></button>)}
-        <button type="button" className={`mobile-link ${(moreOpen||['rodada','viagem','midia','inicio','rankings','historia','importar'].includes(screen))?'mobile-link--active':''}`} onClick={()=>setMoreOpen(v=>!v)} aria-expanded={moreOpen} aria-controls="egidius-mobile-more">{moreOpen?<X size={24}/>:<Menu size={24}/>}<small>Mais</small></button>
+        {sections.filter(x=>['campo','rodada','expressa'].includes(x.id)).map(({id,Icon}) => <button type="button" onClick={()=>navigate(id)} key={id} aria-current={id===screen?'page':undefined} className={id===screen?'mobile-link mobile-link--active':'mobile-link'}><Icon size={24}/><small>{id==='campo'?'Início':id==='rodada'?'Organizar':'Súmula'}</small></button>)}
+        <button type="button" className={`mobile-link ${(moreOpen||['atletas','viagem','midia','inicio','rankings','historia','importar'].includes(screen))?'mobile-link--active':''}`} onClick={()=>setMoreOpen(v=>!v)} aria-expanded={moreOpen} aria-controls="egidius-mobile-more">{moreOpen?<X size={24}/>:<Menu size={24}/>}<small>Mais</small></button>
       </nav>
     </main>
   </div>;

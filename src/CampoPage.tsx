@@ -170,7 +170,7 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
                 </button>}
           </div>;
         })}
-        {!visiveis.length && <p className="campo-empty">{precisaCadastro ? 'Cadastre o primeiro jogador em Sábado completo para começar.' : buscaAtiva ? 'Nenhum jogador encontrado. Tente outro nome.' : abaChegada === 'faltam' ? 'Todos os jogadores cadastrados já chegaram.' : 'Ainda não há chegadas registradas.'}</p>}
+        {!visiveis.length && <p className="campo-empty">{precisaCadastro ? 'Cadastre o primeiro jogador em Organizar sábado para começar.' : buscaAtiva ? 'Nenhum jogador encontrado. Tente outro nome.' : abaChegada === 'faltam' ? 'Todos os jogadores cadastrados já chegaram.' : 'Ainda não há chegadas registradas.'}</p>}
       </div>
       {!mostraTodos && !buscaAtiva && jogadores.length > 8 &&
         <button type="button" className="campo-inline-action" onClick={() => setMostraTodos(true)}>Mostrar todos ({jogadores.length}) <ChevronDown size={19}/></button>}
@@ -184,10 +184,10 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
     <section className="campo-simple-actions" aria-label="O que você quer fazer?">
       <h2>O que vamos fazer?</h2>
       <div className="campo-simple-action-grid">
-        <button type="button" onClick={() => ir('times')}><Shield size={27}/><strong>Ver os times</strong><ChevronRight size={21}/></button>
-        <button type="button" onClick={() => rodada?.jogos.length ? abrirExpressa(rodada?.id) : ir('confronto')}><Target size={27}/><strong>{rodada?.jogos.length ? 'Abrir súmula' : 'Criar partida'}</strong><ChevronRight size={21}/></button>
+        <button type="button" onClick={() => ir('times')}><Shield size={27}/><strong>Montar ou revisar times</strong><ChevronRight size={21}/></button>
+        <button type="button" onClick={() => progresso.confrontoPronto ? abrirExpressa(rodada?.id) : ir(progresso.presentes ? 'times' : 'presencas')}><Target size={27}/><strong>{rodada?.jogos.length ? 'Abrir súmula' : 'Criar partida'}</strong><ChevronRight size={21}/></button>
         <button type="button" onClick={verResultados}><Trophy size={27}/><strong>Resultados</strong><ChevronRight size={21}/></button>
-        <button type="button" onClick={() => rodada ? abrirExpressa(rodada.id, '__novo_jogo__') : ir('rodadas')}><Plus size={27}/><strong>Nova partida</strong><ChevronRight size={21}/></button>
+        {rodada && rodada.jogos.length > 0 && <button type="button" onClick={() => progresso.confrontoPronto ? abrirExpressa(rodada.id, '__novo_jogo__') : ir('times')}><Plus size={27}/><strong>Criar próxima partida</strong><ChevronRight size={21}/></button>}
       </div>
     </section>
 
@@ -207,7 +207,7 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
 
     <section className="campo-simple-details">
       <button type="button" className="campo-simple-details-toggle" aria-expanded={mostraOpcoes} aria-controls="ssw-opcoes-sabado" onClick={() => setMostraOpcoes(v => !v)}>
-        <span><CalendarDays size={23}/><strong>Sábado completo</strong></span><ChevronDown size={22} className={mostraOpcoes ? 'is-open' : ''}/>
+        <span><CalendarDays size={23}/><strong>Organizar sábado</strong></span><ChevronDown size={22} className={mostraOpcoes ? 'is-open' : ''}/>
       </button>
       {mostraOpcoes && <div id="ssw-opcoes-sabado" className="campo-simple-extra">
         <div className="campo-operacao-proximo">

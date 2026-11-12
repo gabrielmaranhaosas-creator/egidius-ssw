@@ -8,9 +8,17 @@ import { distribuirPorChegadaAteSete, JOGADORES_POR_TIME } from './TimeRules';
 import { jogadoresPorChegada } from './CampoRules';
 import { assinaturaEquipes, atribuirJogador, copiarEquipes, criarRascunhoTimes, filtrarDistribuicao, proximoNomeTime, reconciliarRascunhoTimes, resumoMontagem, salvarMontagem } from './TeamBoardRules';
 import './styles/ssw-montagem-times.css';
+import { guardarMontagem, lerMontagem, limparMontagem, montagemPersistidaNoServidor } from './MontagemDrafts';
+import { trocarJogadores } from './TeamBoardRules';
 
-export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jogador[] }) {
-  const [rascunho, setRascunho] = useState(() => criarRascunhoTimes(rodada.equipes, novoId));
+export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jogadores: Jogador[]; continuar?: () => void }) {
+  const [rascunho, setRascunho] = useState(() => {
+    const guardado = lerMontagem(rodada.id);
+    return guardado && !montagemPersistidaNoServidor(guardado, rodada.equipes) ? guardado : criarRascunhoTimes(rodada.equipes, novoId);
+  });
+  const [erroRascunho, setErroRascunho] = useState('');
+  const [trocaA, setTrocaA] = useState('');
+  const [trocaB, setTrocaB] = useState('');
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [busca, setBusca] = useState('');
@@ -29,6 +37,8 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
   const resumo = resumoMontagem(equipes, presentesIds);
   const filtroAtivo = filtro.startsWith('time:') && !equipes.some(e => e.id === filtro.slice(5)) ? 'todos' : filtro;
   const visiveis = filtrarDistribuicao(presente, equipes, busca, filtroAtivo);
+  const pronta = resumo.completos >= 2 && !resumo.semPresenca.length;
+  useEffect(() => { setErroRascunho(guardarMontagem(rodada.id, rascunho)); }, [rodada.id, rascunho]);
 
   useEffect(() => {
     if (rascunho.origem !== assinaturaAtual && !ajustesLocais) {
@@ -55,7 +65,7 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
     const grupos = distribuirPorChegadaAteSete(presentesIds, equipes.length);
     alterarEquipes(equipes.map((e, i) => ({ ...e, atletas: grupos[i] })));
     const disponiveis = Math.max(0, presente.length - equipes.length * JOGADORES_POR_TIME);
-    setAviso(`Distribuição preparada. ${disponiveis} jogador(es) disponível(is) fora dos times. Confira e clique em Salvar.`); setErro('');
+    setAviso(`Distribuição preparada. ${disponiveis} jogador(es) disponível(is) fora dos times. Confira e confirme os times para continuar.`); setErro('');
   }
   function liberarTodos() {
     if (!podeEditar || !equipes.some(e => e.atletas.length)) return;
@@ -67,7 +77,7 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
   function desfazerOrganizacao() {
     if (!podeEditar || !formacaoAnterior) return;
     alterarEquipes(copiarEquipes(formacaoAnterior)); setFormacaoAnterior(null);
-    setAviso('Última organização local restaurada. Confira e salve para aplicar.'); setErro('');
+    setAviso('Última organização local restaurada. Confira e confirme para aplicar.'); setErro('');
   }
   function adicionarEquipe() {
     if (!podeEditar) return;
@@ -93,7 +103,15 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
     alterarEquipes(prev => prev.map(e => e.id === equipeId ? { ...e, nome } : e));
     setErro(''); setAviso('');
   }
-  function salvar() {
+  function trocar() {
+    if (!podeEditar) return;
+    try {
+      const proxima = trocarJogadores(equipes, presentesIds, trocaA, trocaB);
+      setFormacaoAnterior(copiarEquipes(equipes)); alterarEquipes(proxima);
+      setAviso('Jogadores trocados. Confira os times e confirme para aplicar.'); setErro(''); setTrocaA(''); setTrocaB('');
+    } catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível trocar os jogadores.'); }
+  }
+  function salvar(avancar = false) {
     if (!podeEditar) { setErro('Confira e carregue a formação salva antes de aplicar novos ajustes.'); return; }
     try {
       let salvas: EquipeRodada[] = [];
@@ -104,8 +122,10 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
       }, 'salvamento dos times do sábado');
       setRascunho({ equipes: copiarEquipes(salvas), origem: assinaturaEquipes(salvas), editado: false });
       setFormacaoAnterior(null); setErro('');
+      limparMontagem(rodada.id);
       const completos = salvas.filter(e => e.atletas.length === JOGADORES_POR_TIME).length;
       setAviso(`${salvas.length} times salvos; ${completos} completos. Confira “Salvo no servidor”.`);
+      if (avancar && completos >= 2) continuar?.();
     } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível salvar.'); }
   }
 
@@ -113,7 +133,7 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
     <div className="team-board-heading"><div className="team-board-heading-text">
       <span className="team-board-kicker"><ShieldCheck size={18}/> EQUIPES FIXAS DA RODADA</span>
       <h3 id="team-board-title">Times do sábado</h3>
-      <p>Monte os times com <strong>7 jogadores cada (6 de linha + 1 goleiro)</strong>. A montagem pode ser salva incompleta. Quem ficar disponível não entra nas súmulas automaticamente.</p>
+      <p>Distribua os presentes em times de <strong>7 jogadores</strong>. Confira a formação e confirme para continuar às partidas.</p>
     </div><span className={`team-board-status ${bloqueadas ? 'team-board-status--locked' : !ajustesLocais && rodada.equipes.length ? 'team-board-status--saved' : ''}`}>
       {bloqueadas ? <><LockKeyhole size={15}/> Protegidas</> : divergiu ? 'Revisão necessária' : ajustesLocais ? 'Ajustes por salvar' : rodada.equipes.length ? <><Check size={15}/> Salvas</> : 'Não definidas'}
     </span></div>
@@ -126,6 +146,8 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
     </div>}
     {resumo.semPresenca.length > 0 && <p className="rounds-validation" role="alert">Há {resumo.semPresenca.length} jogador(es) nesta montagem sem presença válida no sábado. Confira a lista antes de salvar ou descarte os ajustes para carregar a formação atual.</p>}
     {erro && <p className="rounds-validation" role="alert">{erro}</p>}
+    {erroRascunho && <p className="rounds-validation" role="alert">{erroRascunho}</p>}
+    {ajustesLocais && !erroRascunho && <p className="ux-draft-note" role="status">Rascunho guardado neste navegador. Os times ainda precisam ser confirmados.</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
     <div className="team-board-count"><UsersRound size={19}/> {presente.length} presentes · {equipes.length} times · {resumo.escalados} escalados · {resumo.disponiveis.length} disponíveis</div>
     <div className="multi-team-grid">
@@ -143,14 +165,21 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
       {podeEditar && <button type="button" className="multi-team-add" onClick={adicionarEquipe}><Plus size={25}/><strong>Adicionar time</strong><small>Até 16 equipes por sábado</small></button>}
     </div>
     {podeEditar && presente.length > 0 && <div className="quick-team-tools" role="group" aria-label="Ferramentas rápidas para montagem dos times">
-      <div><strong>Montagem inteligente</strong><small>Até 7 por time, seguindo a chegada. Confira e salve para aplicar.</small></div>
+      <div><strong>Montagem inteligente</strong><small>Até 7 por time, seguindo a chegada. Confira e confirme para aplicar.</small></div>
       <button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir automaticamente</button>
       <button type="button" onClick={liberarTodos} disabled={!equipes.some(e => e.atletas.length)}><X size={19}/> Limpar escalação</button>
       <button type="button" onClick={desfazerOrganizacao} disabled={!formacaoAnterior}><RotateCcw size={19}/> Desfazer organização</button>
     </div>}
-    {!presente.length ? <p className="team-board-empty">Registre as chegadas para distribuir os jogadores nos times.</p> : <details className="multi-assignment ssw-times-distribuicao">
-      <summary><span><strong>Distribuição dos jogadores</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
+    {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Depois, distribua novamente.</p>}
+    {!presente.length ? <p className="team-board-empty">Volte à etapa Presentes para confirmar quem chegou.</p> : <details open className="multi-assignment ssw-times-distribuicao">
+      <summary><span><strong>Escolher jogadores e fazer trocas</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
       <div className="ssw-times-distribuicao-conteudo">
+        {podeEditar && resumo.escalados >= 2 && <fieldset className="ux-player-swap"><legend>Trocar jogadores entre dois times</legend>
+          <label>Primeiro jogador<select aria-label="Primeiro jogador da troca" value={trocaA} onChange={e => { setTrocaA(e.target.value); setTrocaB(''); }}><option value="">Escolha um jogador</option>{equipes.map(e => <optgroup key={e.id} label={e.nome}>{e.atletas.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label>
+          <label>Trocar com<select aria-label="Segundo jogador da troca" value={trocaB} onChange={e => setTrocaB(e.target.value)}><option value="">Escolha o outro jogador</option>{equipes.filter(e => !e.atletas.includes(trocaA)).map(e => <optgroup key={e.id} label={e.nome}>{e.atletas.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label>
+          {trocaA && trocaB && <p>{nomePorId.get(trocaA)} ↔ {nomePorId.get(trocaB)}. Os demais jogadores permanecem nos mesmos times.</p>}
+          <button type="button" disabled={!trocaA || !trocaB} onClick={trocar}>Trocar estes jogadores</button>
+        </fieldset>}
         <p>Busque um nome ou filtre a lista. Os números mostram a posição real de chegada.</p>
         <div className="ssw-times-filtros">
           <label><span>Buscar jogador</span><div><Search size={19} aria-hidden="true"/><input type="search" aria-label="Buscar jogador na distribuição" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Nome do jogador"/></div></label>
@@ -168,8 +197,11 @@ export function TeamBoard({ rodada, jogadores }: { rodada: Rodada; jogadores: Jo
         {!visiveis.length && <p className="ssw-times-sem-resultado">{filtroAtivo === 'disponiveis' && !busca ? 'Todos os presentes estão escalados. Use Todos os presentes para consultar a distribuição.' : 'Nenhum jogador corresponde à busca e ao filtro selecionados.'}</p>}
       </div>
     </details>}
-    <div className="team-board-footer"><p>Os ajustes ficam neste formulário até salvar. Confira “Salvo no servidor” antes de sair da tela.</p>
-      <div className="team-board-buttons">{ajustesLocais && <button type="button" className="team-board-secondary" onClick={carregarFormacaoAtual}><RotateCcw size={18}/> Descartar ajustes</button>}<button type="button" className="team-board-primary" disabled={!podeEditar || !alterado && !!rodada.equipes.length} onClick={salvar}><Save size={18}/> Salvar times do sábado</button></div>
+    <div className="team-board-footer"><p>{pronta ? `${resumo.completos} times completos. ${resumo.disponiveis.length} jogadores disponíveis fora da formação.` : `Complete pelo menos dois times de 7 para criar uma partida. Há ${presente.length} presentes.`}</p>
+      <div className="team-board-buttons">{ajustesLocais && <button type="button" className="team-board-secondary" onClick={carregarFormacaoAtual}><RotateCcw size={18}/> Descartar ajustes</button>}
+        {podeEditar && <button type="button" className="team-board-secondary" disabled={!alterado && !!rodada.equipes.length} onClick={() => salvar(false)}><Save size={18}/> {pronta ? 'Salvar sem continuar' : 'Guardar montagem incompleta'}</button>}
+        {pronta && <button type="button" className="team-board-primary" disabled={divergiu || bloqueadas && ajustesLocais} onClick={() => alterado && podeEditar ? salvar(true) : continuar?.()}><Check size={18}/> {bloqueadas ? 'Continuar para partidas' : 'Confirmar times e continuar'}</button>}
+      </div>
     </div>
   </section>;
 }

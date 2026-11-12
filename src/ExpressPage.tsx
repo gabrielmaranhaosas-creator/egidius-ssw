@@ -10,21 +10,22 @@ import type { DadosSSW, Partida, Rodada } from './SSWStore';
 import { confrontoSugerido, jogoDasEquipes } from './RoundRules';
 import { validarDoisTimes } from './TimeRules';
 import { excluirRascunhosParaLixeira } from './LixeiraRules';
-import { alterarPlacar, atualizarPartidaDaRodada, encerrarPartida, golsAtribuidos, lancarGol, reabrirPartidaDaRodada, validarEncerramento } from './ExpressRules';
+import { alterarPlacar, atualizarPartidaDaRodada, encerrarPartida, golsAtribuidos, lancarGol, reabrirPartidaDaRodada } from './ExpressRules';
 import type { Lado } from './ExpressRules';
 import { SSWConfirmDialog, SSWUndoRedo } from './components/SSWInteractionKit';
 import { SSWGoalPad } from './components/SSWGoalPad';
-import { ConferenciaPartida } from './components/ConferenciaPartida';
+import { ConferenciaPartida, mostrarConferencia } from './components/ConferenciaPartida';
 import './ExpressPage.css';
 import './styles/ssw-goals-09d.css';
+import { podeSairDaMontagem } from './MontagemDrafts';
 
 function editarRodada(dados: DadosSSW, rodadaId: string, fn: (r: Rodada) => Rodada): DadosSSW {
   if (!dados.rodadas.some(r => r.id === rodadaId)) throw new Error('Sábado não encontrado.');
   return { ...dados, rodadas: dados.rodadas.map(r => r.id === rodadaId ? fn(r) : r) };
 }
 
-type Props = { initialRoundId?: string; initialGameId?: string; abrirCompleta: (rodadaId: string, jogoId: string) => void };
-export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Props) {
+type Props = { initialRoundId?: string; initialGameId?: string; onRoundChange?: (id: string) => void; organizar?: (id: string) => void; abrirCompleta: (rodadaId: string, jogoId: string) => void };
+export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, organizar, abrirCompleta }: Props) {
   const dados = useDadosSSW();
   const [rodadaId, setRodadaId] = useState(initialRoundId ?? '');
   const [jogoId, setJogoId] = useState(initialGameId ?? '');
@@ -71,14 +72,13 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
     });
   }
   function encerrar(partida: Partida) {
-    const invalidacao = validarEncerramento(partida);
-    if (invalidacao) { setErro(invalidacao);setMensagem('');return; }
+    if (mostrarConferencia(partida)) { setErro(''); setMensagem(''); return; }
     if (!window.confirm(`Encerrar o Jogo ${String(partida.numero).padStart(2,'0')} (${partida.timeA} ${partida.golsA} × ${partida.golsB} ${partida.timeB})? Os rankings serão atualizados.`)) return;
     modificar(partida, `Jogo ${partida.numero} encerrado`, encerrarPartida);
   }
   function novoConfronto() {
     if (!rodada || rodada.equipes.length < 2) {
-      setErro('Ainda não há dois times formados. Vá em Mais → Sábado completo → Times para montar as equipes.');
+      setErro('Ainda não há dois times formados. Abra Organizar sábado → Times para montar as equipes.');
       setCriarAberto(true);
       return;
     }
@@ -102,8 +102,8 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
       setJogoId(nova.id);
       setCriarAberto(false);
       setMensagem(`Jogo ${numero} criado! Você já pode registrar o placar e os gols.`);
-      window.requestAnimationFrame(() => window.setTimeout(() =>
-        document.getElementById('egidius-placar-express')?.scrollIntoView({block:'start',behavior:'smooth'}), 60));
+      window.requestAnimationFrame(() =>
+        document.getElementById('egidius-placar-express')?.scrollIntoView({block:'start',behavior:'instant'}));
     });
   }
   function excluirJogo(partida: Partida, confirmado = false) {
@@ -137,9 +137,9 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
 
   return <div className="express-page">
     <header className="express-hero"><div><span className="express-overline">SÁBADO SHOW</span><h1>Súmula<span>.</span></h1><p>Escolha um jogo, registre gols ou crie o próximo.</p></div><ClipboardList size={36} aria-hidden="true"/></header>
-    {!sabados.length ? <section className="express-panel"><p>Crie um sábado e forme os times na Central do Sábado para começar.</p></section> : <>
+    {!sabados.length ? <section className="express-panel"><p>Abra Organizar sábado para confirmar os presentes e montar os times.</p></section> : <>
       <section className="express-round express-panel"><label>Qual sábado?
-        <select value={rodada?.id ?? ''} onChange={e => {setRodadaId(e.target.value);setJogoId('');setTimeAId('');setTimeBId('');setMensagem('');setErro('');}}>
+        <select value={rodada?.id ?? ''} onChange={e => {if (!podeSairDaMontagem()) return; onRoundChange?.(e.target.value);setRodadaId(e.target.value);setJogoId('');setTimeAId('');setTimeBId('');setMensagem('');setErro('');}}>
           {sabados.map(r => <option key={r.id} value={r.id}>{dataFormatada(r.data)} · {r.jogos.length} jogos</option>)}
         </select></label>
         <span className="express-round-chip">{rodada?.equipes.length ?? 0} times · {jogos.length} partidas</span>
@@ -155,9 +155,9 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
         <div className="express-new-game" id="egidius-nova-partida">
           <p className="express-new-game-preview">Próxima partida: <strong>{timeA?.nome ?? 'Time A'} ({timeA?.atletas.length ?? 0}/7) × {timeB?.nome ?? 'Time B'} ({timeB?.atletas.length ?? 0}/7)</strong></p>
           <p className="egc8-new-game-hint">Cada time precisa de 7 jogadores, com goleiro escolhido entre eles na súmula.</p>
-          {validarDoisTimes(timeA, timeB) && <p className="egc8-unready" role="status">{validarDoisTimes(timeA,timeB)}</p>}
-          <button type="button" className="express-create-button express-create-primary" onClick={novoConfronto}>
-            <Plus size={24} aria-hidden="true"/> <span>Novo jogo — criar agora</span>
+          {validarDoisTimes(timeA, timeB) && <div className="egc8-unready" role="status"><p>{validarDoisTimes(timeA,timeB)}</p>{rodada && organizar && <button type="button" onClick={() => organizar(rodada.id)}>Organizar os times deste sábado</button>}</div>}
+          <button type="button" className="express-create-button express-create-primary" disabled={!!validarDoisTimes(timeA,timeB)} onClick={novoConfronto}>
+            <Plus size={24} aria-hidden="true"/> <span>Criar partida e abrir súmula</span>
           </button>
           <button type="button" className="express-new-game-toggle express-select-teams" aria-expanded={criarAberto} aria-controls="express-new-game-form" onClick={() => setCriarAberto(v => !v)}>
             <Shield size={19} aria-hidden="true"/>
@@ -170,7 +170,7 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
               <label>Primeiro time<select value={timeA?.id ?? ''} onChange={e => setTimeAId(e.target.value)}>{rodada?.equipes.map(e => <option key={e.id} value={e.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>
               <label>Segundo time<select value={timeB?.id ?? ''} onChange={e => setTimeBId(e.target.value)}>{rodada?.equipes.map(e => <option key={e.id} value={e.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>
             </div>
-            <button type="button" className="express-create-button" onClick={novoConfronto}><Plus size={21}/> Confirmar e abrir novo jogo</button>
+
           </div>}
         </div>
         {jogo && <div className="express-delete-row">
@@ -180,8 +180,9 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
       </section>
       {jogo && <section id="egidius-placar-express" className="express-board express-panel" aria-labelledby="express-board-heading"><div className="express-board-top"><span id="express-board-heading">JOGO {String(jogo.numero).padStart(2,'0')}</span><span className={jogo.status==='encerrada'?'express-status express-status--closed':'express-status'}>{jogo.status==='encerrada'?'ENCERRADO':'EM EDIÇÃO'}</span></div>
         <div className="express-score-grid">{(['A','B'] as const).map(lado => {const placar = lado==='A' ? jogo.golsA : jogo.golsB;const titulo = lado==='A'?jogo.timeA:jogo.timeB;return <div className="express-score-team" key={lado}><strong>{titulo}</strong><div className="express-score-value" aria-label={`${titulo}: ${placar} gols`}>{placar}</div><small>{golsAtribuidos(jogo,lado)} gols com autor identificado</small></div>;})}</div>
-        {jogo.status === 'encerrada' && <p className="express-closed-note">Partida encerrada. Para registrar novos gols, escolha <strong>Criar nova partida</strong> acima.</p>}
+        {jogo.status === 'encerrada' && <p className="express-closed-note">Partida encerrada. Confira a sincronização no topo antes de sair.</p>}
         <p className="express-score-hint">Toque em <strong>+ Gol</strong> ao lado do jogador. O placar será atualizado automaticamente.</p>
+        <section className="ux-keepers-required" aria-label="Goleiros desta partida"><h3>Goleiros da partida</h3><p>Escolha um jogador de cada time. Essa informação é necessária para encerrar.</p><div className="express-keepers">{(['A','B'] as const).map(lado => <label key={lado}><Shield size={17}/> Goleiro · {lado==='A'?jogo.timeA:jogo.timeB}<select data-conferencia={`goleiro-${lado}`} disabled={jogo.status==='encerrada'} value={(lado==='A'?jogo.goleiroA:jogo.goleiroB)??''} onChange={e=>modificar(jogo,'goleiro alterado',j=>({...j,[lado==='A'?'goleiroA':'goleiroB']:e.target.value||null}))}><option value="">Não informado</option>{(lado==='A'?jogo.atletasA:jogo.atletasB).map(id=><option key={id} value={id}>{nomes.get(id)??'Atleta'}</option>)}</select></label>)}</div></section>
         <SSWGoalPad
           jogo={jogo}
           nomes={nomes}
@@ -191,8 +192,8 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
           remover={(l, id) => modificar(jogo, `Gol de ${nomes.get(id) ?? 'atleta'} corrigido`, partida => lancarGol(partida, l, id, -1))}
         />
         <details className="eg09d-advanced">
-          <summary>Goleiros e ajustes adicionais</summary>
-          <p>Use os controles abaixo para escolher goleiros ou ajustar gols sem autoria. Prefira <strong>+ Gol</strong> no nome de cada jogador.</p>
+          <summary>Ajustes de placar e gols sem autoria</summary>
+          <p>Use estes controles somente para corrigir o placar ou registrar gols sem autoria. Prefira <strong>+ Gol</strong> no nome de cada jogador.</p>
           <div className="eg09d-score-corrections">
             {(['A','B'] as const).map(l => { const nome = l === 'A' ? jogo.timeA : jogo.timeB; const placar = l === 'A' ? jogo.golsA : jogo.golsB; return <div key={l}>
               <strong>{nome} — {placar} gol(s)</strong>
@@ -202,12 +203,11 @@ export function ExpressPage({ initialRoundId, initialGameId, abrirCompleta }: Pr
               </div>
             </div>; })}
           </div>
-          <div className="express-keepers">{(['A','B'] as const).map(lado => <label key={lado}><Shield size={17}/> Goleiro · {lado==='A'?jogo.timeA:jogo.timeB}<select disabled={jogo.status==='encerrada'} value={(lado==='A'?jogo.goleiroA:jogo.goleiroB)??''} onChange={e=>modificar(jogo,'goleiro alterado',j=>({...j,[lado==='A'?'goleiroA':'goleiroB']:e.target.value||null}))}><option value="">Não informado</option>{(lado==='A'?jogo.atletasA:jogo.atletasB).map(id=><option key={id} value={id}>{nomes.get(id)??'Atleta'}</option>)}</select></label>)}</div>
-        {jogo.status==='rascunho'&&<label className="express-author"><input type="checkbox" checked={jogo.permitirGolsSemAutor} onChange={e=>modificar(jogo,'autoria de gols ajustada',j=>({...j,permitirGolsSemAutor:e.target.checked}))}/> Autorizar encerramento com gols sem autor identificado</label>}
+
+        {jogo.status==='rascunho'&&<label className="express-author"><input data-conferencia="sem-autoria" type="checkbox" checked={jogo.permitirGolsSemAutor} onChange={e=>modificar(jogo,'autoria de gols ajustada',j=>({...j,permitirGolsSemAutor:e.target.checked}))}/> Autorizar encerramento com gols sem autor identificado</label>}
         </details>
-        {jogo.status === 'rascunho' && (!jogo.goleiroA || !jogo.goleiroB) && <p className="eg09d-keeper-reminder">Antes de encerrar: escolha os goleiros em <strong>Goleiros e ajustes adicionais</strong>.</p>}
         <ConferenciaPartida jogo={jogo}/>
-        <div className="express-final-actions"><button type="button" className="express-secondary" onClick={()=>abrirCompleta(rodada!.id,jogo.id)}><ClipboardList size={19}/> Súmula completa <ArrowRight size={19}/></button>{jogo.status==='rascunho'?<button type="button" className="express-finish" onClick={()=>encerrar(jogo)}><CheckCircle2 size={21}/> Encerrar partida</button>:<span className="express-finished"><Trophy size={21}/> Jogo encerrado; use “Reabrir para corrigir” para editar.</span>}</div>
+        <div className="express-final-actions"><button type="button" className="express-secondary" onClick={()=>abrirCompleta(rodada!.id,jogo.id)}><ClipboardList size={19}/> Súmula completa <ArrowRight size={19}/></button>{jogo.status==='rascunho'?<button type="button" className="express-finish" onClick={()=>encerrar(jogo)}><CheckCircle2 size={21}/> Encerrar partida</button>:<span className="express-finished"><Trophy size={21}/> Partida encerrada. <button type="button" onClick={() => {setCriarAberto(true);document.getElementById('egidius-nova-partida')?.scrollIntoView({block:'center',behavior:'smooth'});}}>Preparar próxima partida</button></span>}</div>
       </section>}
       {partidaAExcluir && <SSWConfirmDialog
         titulo={`Excluir jogo ${partidaAExcluir.numero}?`}
