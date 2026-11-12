@@ -3,3 +3,5 @@
 @media(max-width:430px){.media-grid{grid-template-columns:1fr}.media-thumb{height:220px}.media-file-zone input{font-size:16px}}
 
 .ssw-pdf-download{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;width:100%;height:100%;min-height:190px;background:#f9ecd7;color:#8f3b27;text-decoration:none;font-size:18px;font-weight:800}.media-tile-actions{flex-wrap:wrap}.media-tile-actions a{display:inline-flex;align-items:center;gap:6px;text-decoration:none}.media-tile-body strong,.media-selected-files{overflow-wrap:anywhere}.media-input-grid label{min-width:0}
+.media-selection-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 12px}.media-selection-row .media-selected-files{flex:1 1 260px;min-width:0;margin:0}.media-selection-row .media-undo-selection{flex:0 0 auto;min-height:46px}.media-undo-selection:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:740px){.media-selection-row .media-undo-selection{width:100%;min-height:52px}}

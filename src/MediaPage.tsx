@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Camera, CheckCheck, Film, ImagePlus, Images, LoaderCircle, RefreshCcw, Save, Trash2, Upload, Video, X, FileText, Download } from 'lucide-react';
+import { Camera, CheckCheck, Film, ImagePlus, Images, LoaderCircle, RefreshCcw, Save, Trash2, Undo2, Upload, Video, X, FileText, Download } from 'lucide-react';
 import { useDadosSSW, dataFormatada } from './SSWStore';
 import { captionMedia, getCsrf, listMedia, mediaIsImage, mediaSize, removeMedia, uploadMedia } from './mediaClient';
 import type { MediaItem } from './mediaClient';
@@ -36,6 +36,11 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   function updateFiles(e:ChangeEvent<HTMLInputElement>){
     const next=Array.from(e.target.files||[]);
     setFiles(next);setMessage('');setError('');
+  }
+  function undoSelection(){
+    if(busy||!files.length)return;
+    setFiles([]);setError('');setMessage('Seleção de arquivos desfeita.');
+    if(picker.current)picker.current.value='';
   }
   async function upload(){
     if(!roundId||!files.length||busy)return;
@@ -102,7 +107,10 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
           <label>Legenda opcional<input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={250} placeholder="Ex.: jogo histórico, sábado animado" disabled={busy}/></label>
         </div>
         <label className="media-file-zone"><ImagePlus size={26}/><span><strong>Escolher {kind==='video'?'vídeos':kind==='document'?'PDFs':'fotografias'}</strong><small>{kind==='video'?'MP4, MOV ou WebM · até 100 MB cada':kind==='document'?'PDF sem senha · até 20 MB e 300 páginas':'JPG, PNG ou WebP · até 12 MB cada'} · até 12 de cada vez</small></span><input ref={picker} type="file" multiple accept={kind==='video'?'.mp4,.mov,.webm,video/mp4,video/quicktime,video/webm':kind==='document'?'.pdf,application/pdf':'.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'} onChange={updateFiles} disabled={busy}/></label>
-        {files.length>0&&<p className="media-selected-files">{files.length} selecionado(s) · {files.map(f=>f.name).join(', ')}</p>}
+        {files.length>0&&<div className="media-selection-row">
+          <p className="media-selected-files">{files.length} selecionado(s) · {files.map(f=>f.name).join(', ')}</p>
+          <button type="button" className="media-secondary media-undo-selection" onClick={undoSelection} disabled={busy} title="Retirar os arquivos selecionados que ainda não foram enviados"><Undo2 size={19} aria-hidden="true"/>Desfazer seleção</button>
+        </div>}
         <button type="button" className="media-primary" onClick={()=>void upload()} disabled={!roundId||!files.length||busy}>{busy?<LoaderCircle size={22}/>:<Upload size={22}/>} {progress||`Enviar ${files.length?files.length+' arquivo(s)':'mídia'} ao servidor`}</button>
       </>}
     </section>
