@@ -5,6 +5,7 @@ import { Cloud, CloudOff, RefreshCw, ShieldCheck, Download, LogOut, AlertTriangl
 import { adotarDadosDoServidor, exportarBackup, observarMudancas, obterDadosAtuais } from './SSWStore';
 import type { DadosSSW } from './SSWStore';
 import './SyncGate.css';
+import { definirOperadorMontagem, podeSairDaMontagem, useMontagensPendentes } from './MontagemDrafts';
 
 type Remote = { revision: number; data: DadosSSW };
 type View = 'loading'|'offline'|'closed'|'choice'|'ready';
@@ -45,6 +46,7 @@ function salvarJSON(data:unknown, titulo:string) {
 }
 
 export function SyncGate({children}:{children:ReactNode}) {
+  const montagensPendentes = useMontagensPendentes();
   const [view,setView] = useState<View>('loading');
   const [status,setStatus] = useState<Status>('saved');
   const [message,setMessage] = useState('');
@@ -89,6 +91,7 @@ export function SyncGate({children}:{children:ReactNode}) {
   }
 
   function conectar(remote:Remote, csrf:string, nome:string) {
+    definirOperadorMontagem(nome);
     session.current={revision:remote.revision,lastSaved:stableStringify(remote.data),csrf,pending:false,blocked:false,alive:true};
     user.current=nome;setUsername(nome);setStatus('saved');setMessage('');
     setView('ready');
@@ -191,6 +194,7 @@ export function SyncGate({children}:{children:ReactNode}) {
     }catch(e){setMessage((e as Error).message);}
   }
   async function logout() {
+    if (!podeSairDaMontagem()) return;
     const s=session.current;if(!s)return;
     if(stableStringify(obterDadosAtuais())!==s.lastSaved && !window.confirm('Existem alterações ainda não sincronizadas. Deseja sair? Exporte um backup primeiro.'))return;
     try {await api('/auth/logout',{method:'POST',headers:{'X-CSRF-Token':s.csrf}});}catch{ /* servidor pode estar offline */ }
@@ -199,8 +203,9 @@ export function SyncGate({children}:{children:ReactNode}) {
   if (view==='ready') return <>
     <div className={`sync-banner sync-banner--${status}`} role="status">
       {status==='saved'?<ShieldCheck size={20}/>:status==='sending'?<RefreshCw size={20}/>:<CloudOff size={20}/>}
-      <strong>{status==='saved'?'Salvo no servidor':status==='sending'?'Sincronizando…':status==='offline'?'Sem conexão com servidor':'Conflito entre dispositivos'}</strong>
-      <span>{message || (username === 'operador_local' ? 'Acesso pelo Mac · dados sincronizados' : 'Dados sincronizados entre dispositivos')}</span>
+      <strong>{status==='saved'?(montagensPendentes ? 'Times por confirmar' : 'Salvo no servidor'):status==='sending'?'Sincronizando…':status==='offline'?'Sem conexão com servidor':'Conflito entre dispositivos'}</strong>
+      <span>{message || (montagensPendentes ? 'Rascunho guardado neste navegador; confirme os times para aplicar.' : username === 'operador_local' ? 'Acesso pelo Mac · dados sincronizados' : 'Dados sincronizados entre dispositivos')}</span>
+      {montagensPendentes>0 && <button type="button" onClick={() => window.dispatchEvent(new Event('egidius:abrir-montagem'))}>Retomar montagem</button>}
       {status==='offline'&&<button onClick={()=>void refresh()} type="button">Tentar novamente</button>}
       {status==='conflict'&&<button onClick={()=>void resolverConflito()} type="button">Resolver conflito</button>}
       <button onClick={()=>exportarBackup()} type="button" title="Baixar cópia de segurança"><Download size={19}/><span className="sync-small">Backup JSON</span></button>
@@ -211,7 +216,7 @@ export function SyncGate({children}:{children:ReactNode}) {
   return <div className="gate-wrap"><main className="gate-card">
     <div className="gate-logo"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><div><b>EGIDIUS<span>.</span></b><small>SÁBADO SHOW</small></div></div>
     {view==='loading'&&<><Cloud size={32}/><h1>Conectando ao servidor</h1><p>Conferindo sua sessão e os registros das súmulas.</p></>}
-    {view==='offline'&&<><CloudOff size={32}/><h1>Não foi possível conectar</h1><p>{message}</p><p>No Mac, confira se o EGIDIUS está iniciado. Em outro dispositivo, abra o convite recebido.</p><button className="gate-primary" onClick={()=>void restoreSession()}>Tentar conexão novamente</button></>}
+    {view==='offline'&&<><CloudOff size={32}/><h1>{message.toLocaleLowerCase().includes('convite') ? 'Convite de acesso necessário' : 'Não foi possível conectar'}</h1><p>{message}</p><p>{message.toLocaleLowerCase().includes('convite') ? 'Abra o link completo de convite recebido. O endereço simples do site ainda não libera o primeiro acesso neste dispositivo.' : 'Tente novamente. Se estiver usando a versão local no Mac, confira se o servidor está iniciado.'}</p><button className="gate-primary" onClick={()=>void restoreSession()}>Tentar conexão novamente</button></>}
     {view==='closed'&&<><ShieldCheck size={32}/><h1>Acesso encerrado</h1><p>No Mac, clique abaixo para abrir novamente. Em outro dispositivo, utilize seu convite.</p><button className="gate-primary" onClick={()=>void restoreSession()}>Abrir EGIDIUS</button></>}
     {view==='choice'&&selected&&<><AlertTriangle size={32}/><h1>{decision==='first'?'Trazer seus dados antigos':'Escolher a base de trabalho'}</h1>
       <p>{decision==='first'?'O servidor está vazio, mas este navegador contém atletas ou rodadas. Nada será importado sem sua escolha.':'Este navegador e o servidor possuem dados diferentes. Nenhuma fonte foi sobrescrita.'}</p>

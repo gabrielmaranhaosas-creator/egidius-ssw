@@ -23,6 +23,8 @@ import { statusRodada } from './CampoRules';
 import type { CampoDestino } from './CampoRules';
 import './styles/ssw-trash-09e.css';
 import './styles/ssw-sabado-completo.css';
+import { podeSairDaMontagem } from './MontagemDrafts';
+import { mostrarConferencia } from './components/ConferenciaPartida';
 
 function atualizarRodada(dados: DadosSSW, id: string, aplicar: (jogos: DadosSSW['rodadas'][number]) => DadosSSW['rodadas'][number]): DadosSSW {
   return { ...dados, rodadas: dados.rodadas.map(rodada => rodada.id === id ? aplicar(rodada) : rodada) };
@@ -31,8 +33,16 @@ function somaGols(jogo: Partida, side: 'A' | 'B'): number {
   return (side === 'A' ? jogo.atletasA : jogo.atletasB).reduce((n, id) => n + (jogo.golsPorAtleta[id] ?? 0), 0);
 }
 
-export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundId?: string; initialGameId?: string }) {
+type Etapa = 'presencas' | 'times' | 'partidas';
+const etapaDestino = (destino?: CampoDestino): Etapa => destino === 'times' ? 'times' : destino === 'confronto' || destino === 'partidas' ? 'partidas' : 'presencas';
+export function RoundsManager({ initialRoundId, initialGameId, initialStage, onRoundChange, abrirExpressa }: { initialRoundId?: string; initialGameId?: string; initialStage?: CampoDestino; onRoundChange?: (id: string) => void; abrirExpressa?: (id: string, jogo?: string) => void }) {
   const dados = useDadosSSW();
+  const [etapa, setEtapa] = useState<Etapa>(() => etapaDestino(initialStage));
+  useEffect(() => {
+    if (initialRoundId) setRodadaSelecionada(initialRoundId);
+    setEtapa(etapaDestino(initialStage));
+    if (initialGameId) setJogoAberto(initialGameId);
+  }, [initialRoundId, initialStage, initialGameId]);
   const [dataDesejada, setDataDesejada] = useState(proximoSabado);
   const [rodadaSelecionada, setRodadaSelecionada] = useState(initialRoundId ?? '');
   const [nomeJogador, setNomeJogador] = useState('');
@@ -81,6 +91,8 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     return () => window.removeEventListener('keydown', atalhos);
   }, []);
   function mudarRodada(id:string) {
+    if (!podeSairDaMontagem()) return;
+    onRoundChange?.(id); setEtapa('presencas');
     setRodadaSelecionada(id); setAviso(''); setJogosSelecionados([]); setSelecionando(false); setJogoAberto(null);
   }
   function executarHistorico(refazer:boolean) {
@@ -190,6 +202,8 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     }
   }
   function irParaEtapa(destino: CampoDestino) {
+    setEtapa(etapaDestino(destino));
+    window.requestAnimationFrame(() => {
     const ids: Record<CampoDestino, string> = {
       rodadas: 'rounds-title', cadastro: 'eg-cadastro', presencas: 'eg-checkin',
       times: 'eg-team-board', confronto: 'eg-next-game', partidas: 'eg-game-list',
@@ -198,6 +212,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     if (target instanceof HTMLDetailsElement) target.open = true;
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (destino === 'cadastro') target?.querySelector<HTMLInputElement>('#ssw-player-name')?.focus({ preventScroll: true });
+    });
   }
   function alternarPresenca(id: string) {
     if (!rodada) { setErro('Crie ou selecione uma rodada antes do check-in.'); return; }
@@ -272,6 +287,8 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     });
   }
   function encerrar(game: Partida) {
+    if (mostrarConferencia(game)) return;
+    if (!window.confirm(`Encerrar o Jogo ${String(game.numero).padStart(2,'0')} (${game.timeA} ${game.golsA} × ${game.golsB} ${game.timeB})? Os rankings serão atualizados.`)) return;
     if (modificarJogo(game.id, encerrarPartida, 'encerramento do jogo')) {
       setAviso(`Jogo ${String(game.numero).padStart(2, '0')} encerrado. Pontos e estatísticas recalculados.`);
     }
@@ -300,9 +317,9 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
   }
   function abrirEditor(id: string) {
     setJogoAberto(id);
-    window.requestAnimationFrame(() => window.setTimeout(() => {
-      document.getElementById(`eg-game-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }, 80));
+    window.requestAnimationFrame(() => {
+      document.getElementById(`eg-game-${id}`)?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
   }
 
   function renderEquipe(game: Partida, side: 'A' | 'B') {
@@ -336,7 +353,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
         {game.status === 'rascunho' && !game.vinculoFormacao && <button type="button" className="squad-remove" title="Remover da escalação" aria-label={`Remover ${nomePorId.get(id)} da equipe ${side}`} onClick={() => removerAtleta(game, side, id)}><Trash2 size={15}/></button>}
       </div>)}
       <label className="squad-keeper">Goleiro da equipe (1 dos 7)
-        <select disabled={game.status === 'encerrada'} value={goleiro ?? ''} onChange={(e: ChangeEvent<HTMLSelectElement>) => alterarGoleiro(game.id, side, e.target.value)}>
+        <select data-conferencia={`goleiro-${side}`} disabled={game.status === 'encerrada'} value={goleiro ?? ''} onChange={(e: ChangeEvent<HTMLSelectElement>) => alterarGoleiro(game.id, side, e.target.value)}>
           <option value="">Não informado</option>
           {escalados.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}
         </select>
@@ -346,16 +363,21 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     </div>;
   }
 
-  return <section className="rounds-system" aria-labelledby="rounds-title">
-    <div className="rounds-head"><div><p className="eyebrow">LIVRO DIGITAL DO SÁBADO</p><h2 id="rounds-title">Rodadas e súmulas<span className="title-dot">.</span></h2><p>Chegada, várias equipes fixas por sábado e confrontos rápidos entre quaisquer duas delas.</p></div><span className="rounds-counter">{rodadas.length} {rodadas.length === 1 ? 'SÁBADO' : 'SÁBADOS'} NO EGIDIUS</span></div>
+  return <section className="rounds-system ux-organizar" aria-labelledby="rounds-title" data-etapa={etapa}>
+    <div className="rounds-head"><div><p className="eyebrow">LIVRO DIGITAL DO SÁBADO</p><h2 id="rounds-title">Preparar o sábado<span className="title-dot">.</span></h2><p>Siga as três etapas. O sábado selecionado permanece o mesmo durante a operação.</p></div><span className="rounds-counter">{rodadas.length} {rodadas.length === 1 ? 'SÁBADO' : 'SÁBADOS'} NO EGIDIUS</span></div>
     <div className="rounds-toolbar">
-      <label className="rounds-date-label">Data do sábado<input type="date" value={dataDesejada} onChange={(e: ChangeEvent<HTMLInputElement>) => setDataDesejada(e.target.value)}/></label>
-      <button type="button" className="rounds-add-button" onClick={criarRodada}><Plus size={18}/> Criar / abrir sábado</button>
+      <details className="ux-create-round" open={!rodadas.length}><summary>{rodadas.length ? 'Criar outro sábado' : 'Criar o primeiro sábado'}</summary><div>
+      <label className="rounds-date-label">Data do novo sábado<input type="date" value={dataDesejada} onChange={(e: ChangeEvent<HTMLInputElement>) => setDataDesejada(e.target.value)}/></label>
+      <button type="button" className="rounds-add-button" onClick={criarRodada}><Plus size={18}/> Criar ou abrir esta data</button></div></details>
       {rodadas.length > 0 && <label className="rounds-select-label">Selecionar rodada<select value={rodada?.id ?? ''} onChange={(e: ChangeEvent<HTMLSelectElement>) => mudarRodada(e.target.value)}>
         {rodadas.map(r => <option key={r.id} value={r.id}>{dataFormatada(r.data)} · {r.jogos.length} jogos</option>)}
       </select></label>}
     </div>
-    <div className="ssw-sabado-proximo" aria-label="Próximo passo do Sábado completo">
+    <nav className="ux-etapas" aria-label="Etapas para organizar o sábado">
+      {([['presencas','1. Presentes'],['times','2. Times'],['partidas','3. Partidas']] as [Etapa,string][]).map(([id,titulo]) => <button type="button" key={id} aria-current={etapa===id?'step':undefined} onClick={() => irParaEtapa(id === 'partidas' ? 'confronto' : id)}>{titulo}</button>)}
+    </nav>
+    {rodada && <p className="ux-active-date"><CalendarDays size={18}/> {dataFormatada(rodada.data)} · {rodada.presencas.length} presentes · {progresso.timesCompletos} times confirmados completos</p>}
+    <div className="ssw-sabado-proximo" hidden={etapa==='times'} aria-label="Próximo passo do Sábado completo">
       <div><small>PRÓXIMO PASSO</small><strong>{progresso.passo}</strong><span>{dados.jogadores.length} jogadores cadastrados · {progresso.presentes} presentes · {progresso.timesCompletos} times completos</span></div>
       <button type="button" onClick={() => irParaEtapa(progresso.destino)}>Continuar <ChevronRight size={20}/></button>
     </div>
@@ -363,7 +385,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     {erro && <p className="rounds-validation" role="alert">{erro}</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
     {armazenamento.erro && <p className="rounds-validation" role="alert">ATENÇÃO: {armazenamento.erro}</p>}
-    {rodada && <section id="eg-next-game" className="egc7-control" aria-labelledby="egc7-title">
+    {rodada && <section id="eg-next-game" hidden={etapa!=='partidas'} className="egc7-control" aria-labelledby="egc7-title">
       <div className="egc7-title"><div><span>SÁBADO EM CAMPO</span><h3 id="egc7-title">Jogos deste sábado</h3><p>{rodada.jogos.length} jogo(s) · {rodada.equipes.length} time(s) · {rodada.presencas.length} presente(s)</p></div><ClipboardList size={28} aria-hidden="true"/></div>
       <div className="egc7-create">
         <h4>Nova partida</h4>
@@ -373,7 +395,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
             <span aria-hidden="true">×</span>
             <label>Segundo time<select value={equipeEscolhidaB?.id ?? ''} onChange={e => selecionarEquipe('b', e.target.value)}>{rodada.equipes.map(e => <option key={e.id} value={e.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>
           </div>
-          <button type="button" className="egc7-new-button" disabled={!equipeEscolhidaA || !equipeEscolhidaB || equipeEscolhidaA.id===equipeEscolhidaB.id} onClick={criarJogo}><Plus size={24}/> Criar jogo e abrir súmula</button>
+          <button type="button" className="egc7-new-button" disabled={!!validarDoisTimes(equipeEscolhidaA, equipeEscolhidaB)} onClick={criarJogo}><Plus size={24}/> Criar partida e abrir súmula</button>
           {equipeEscolhidaA && equipeEscolhidaB && validarDoisTimes(equipeEscolhidaA, equipeEscolhidaB) && <p className="egc7-error" role="status">{validarDoisTimes(equipeEscolhidaA, equipeEscolhidaB)}</p>}
         </>}
       </div>
@@ -388,6 +410,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
         </div>)}
       </div>
     </section>}
+    <details className="ux-maintenance" hidden={etapa!=='partidas'}><summary>Ferramentas: lixeira, desfazer e backup</summary>
     {rodada && <section className="eg09e-trash" aria-label="Lixeira de partidas deste sábado">
       <details>
         <summary><Trash2 size={21} aria-hidden="true"/> <span>Lixeira de jogos</span>
@@ -410,7 +433,8 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
     </div>
     <div className="eg-data-actions"><span><LockKeyhole size={16}/> Dados mantidos neste navegador como cópia local e enviados à API. Confira o status acima.</span><button type="button" onClick={exportarBackup}><Download size={16}/> Exportar backup JSON</button></div>
 
-    <div className="roster-section">
+    </details>
+    <div className="roster-section" hidden={etapa!=='presencas'}>
       <details id="eg-cadastro" className="roster-panel ssw-release-disclosure ssw-release-registration">
         <summary><span>Cadastro de jogadores ({dados.jogadores.length})</span><ChevronRight size={20} aria-hidden="true"/></summary>
         <form onSubmit={cadastrar} className="roster-form">
@@ -452,9 +476,10 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
       </div>
     </div>
 
+    {etapa==='presencas' && rodada && <div className="ux-stage-actions"><p>{rodada.presencas.length < 14 ? `Há ${rodada.presencas.length} presentes. Para uma partida, são necessários 14 jogadores.` : 'Presenças registradas. Agora distribua os jogadores nos times.'}</p><button type="button" disabled={!rodada.presencas.length} onClick={() => irParaEtapa('times')}>Continuar para os times <ChevronRight size={20}/></button></div>}
     {!rodada ? <div className="rounds-empty"><CalendarDays size={33}/><strong>Nenhum sábado registrado</strong><p>Crie a primeira rodada para organizar as súmulas.</p></div> : <>
-      <div id="eg-team-board" key={rodada.id}><TeamBoard rodada={rodada} jogadores={dados.jogadores}/></div>
-      <div className="rounds-selected"><div><span>RODADA SELECIONADA</span><h3>{dataFormatada(rodada.data)}</h3><p>{rodada.jogos.length} partidas · {rodada.presencas.length} presentes · {rodada.equipes.length} times</p></div></div>
+      <div id="eg-team-board" key={rodada.id} hidden={etapa!=='times'}><TeamBoard rodada={rodada} jogadores={dados.jogadores} continuar={() => {setAviso('Times confirmados. Escolha o confronto para criar a partida.');irParaEtapa('confronto');}}/></div>
+      <div hidden={etapa!=='partidas'} className="ux-match-area"><div className="rounds-selected"><div><span>RODADA SELECIONADA</span><h3>{dataFormatada(rodada.data)}</h3><p>{rodada.jogos.length} partidas · {rodada.presencas.length} presentes · {rodada.equipes.length} times</p></div></div>
       <div id="eg-game-list" className="quick-matches-heading"><div><strong>Súmulas do sábado</strong><p>Duplique confrontos ou gerencie vários rascunhos em lote.</p></div>
         <button type="button" onClick={()=>{setSelecionando(v=>!v);setJogosSelecionados([]);}} aria-pressed={selecionando}><CheckSquare size={20}/> {selecionando?'Sair da seleção':'Selecionar súmulas'}</button>
       </div>
@@ -466,7 +491,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
         <small>Somente rascunhos podem ser excluídos em lote. Dados encerrados ficam protegidos.</small>
       </div>}
       <div className="match-cards">
-        {!rodada.jogos.length && <div className="rounds-no-games"><ClipboardList size={24}/><span>Nenhuma súmula neste sábado. Clique em <strong>Nova súmula</strong>.</span></div>}
+        {!rodada.jogos.length && <div className="rounds-no-games"><ClipboardList size={24}/><span>Nenhuma súmula neste sábado. Use <strong>Criar partida</strong> nesta etapa.</span></div>}
         {rodada.jogos.map(game => <article id={`eg-game-${game.id}`} className={`match-editor ${jogoAberto === game.id ? 'match-editor--expanded' : 'match-editor--collapsed'}`} key={game.id}>
           <div className="match-editor-header"><div className="quick-match-title">{selecionando && <label className="quick-match-check"><input type="checkbox" disabled={game.status === 'encerrada'} checked={jogosSelecionados.includes(game.id) && game.status === 'rascunho'} onChange={()=>alternarJogoSelecionado(game.id)} aria-label={`Selecionar rascunho do Jogo ${game.numero}`}/></label>}<span className="match-number">JOGO {String(game.numero).padStart(2, '0')}</span></div><div className="match-editor-labels">{game.vinculoFormacao && <span className="linked-badge"><Shield size={13}/> TIMES FIXOS</span>}<span className={`match-status match-status--${game.status}`}>{game.status === 'encerrada' ? 'ENCERRADO' : 'RASCUNHO'}</span></div><button type="button" className="mobile-match-toggle" onClick={()=>setJogoAberto(prev=>prev===game.id?null:game.id)} aria-expanded={jogoAberto===game.id} aria-controls={`match-details-${game.id}`}>
             {jogoAberto===game.id?'Recolher súmula':'Abrir súmula'} <span>{game.golsA} × {game.golsB}</span>
@@ -480,11 +505,12 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
             <input type="number" min={0} max={99} inputMode="numeric" aria-label={`Placar equipe B do jogo ${game.numero}`} disabled={game.status === 'encerrada'} value={game.golsB} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, golsB: Math.min(99, Math.max(0, Number(e.target.value) || 0)) }))}/>
             <label>Equipe B<input value={game.timeB} maxLength={40} disabled={game.status === 'encerrada' || game.vinculoFormacao} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, timeB: e.target.value }))}/></label>
           </div>
-          <div className="squad-grid">{renderEquipe(game, 'A')}{renderEquipe(game, 'B')}</div>
+          <div className="squad-grid" data-conferencia="escalacao">{renderEquipe(game, 'A')}{renderEquipe(game, 'B')}</div>
           {game.status === 'encerrada' && (!game.atletasA.length || !game.atletasB.length) && <p className="legacy-warning">Súmula importada de registros antigos: o placar está preservado, mas ainda não existe escalação. Reabra e complete os atletas para calcular pontuação individual.</p>}
           <label className="match-notes">Anotações da súmula<textarea rows={2} maxLength={1500} placeholder="Ocorrências, arbitragem, anotações..." disabled={game.status === 'encerrada'} value={game.observacoes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => modificarJogo(game.id, j => ({ ...j, observacoes: e.target.value }))}/></label>
-          {game.status === 'rascunho' && <label className="unknown-check"><input type="checkbox" checked={game.permitirGolsSemAutor} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, permitirGolsSemAutor: e.target.checked }))}/><span>Permitir encerrar com gol(s) sem autoria identificada (não contabilizados na artilharia)</span></label>}
+          {game.status === 'rascunho' && <label className="unknown-check"><input data-conferencia="sem-autoria" type="checkbox" checked={game.permitirGolsSemAutor} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, permitirGolsSemAutor: e.target.checked }))}/><span>Permitir encerrar com gol(s) sem autoria identificada (não contabilizados na artilharia)</span></label>}
           <ConferenciaPartida jogo={game}/>
+          {game.status==='encerrada' && <p className="ux-completed" role="status">Partida encerrada. Confira a sincronização no topo. {abrirExpressa && <button type="button" onClick={() => abrirExpressa(rodada.id,'__novo_jogo__')}>Criar próxima partida</button>}</p>}
           <div className="match-editor-actions"><span className="local-save"><Save size={15}/> {armazenamento.persistiu ? 'Cópia local automática' : 'Falha na cópia local'}</span><div className="match-editor-buttons"><button type="button" className="quick-duplicate" onClick={()=>duplicar(game)} title="Repetir confronto e jogadores, zerando placar e gols"><Copy size={17}/> Duplicar</button>{game.status === 'rascunho' ? <>
             <button type="button" className="rounds-trash" onClick={() => excluir(game)} aria-label={`Excluir jogo ${game.numero}`}><Trash2 size={17}/></button>
             <button type="button" className="rounds-finish" onClick={() => encerrar(game)}><CheckCircle2 size={16}/> Encerrar jogo</button>
@@ -493,6 +519,7 @@ export function RoundsManager({ initialRoundId, initialGameId }: { initialRoundI
         </article>)}
       </div>
       <div className="media-next"><div className="media-icons"><ImageIcon size={23}/><Film size={23}/></div><div><strong>Fotos e vídeos já disponíveis</strong><p>Use a área Mídia para vincular arquivos às rodadas e aos jogos.</p></div></div>
+      </div>
     </>}
     <p className="rounds-disclaimer"><LockKeyhole size={14}/> Confira Salvo no servidor antes de sair. Em Importar e arquivos → Guia e backup, baixe uma cópia completa do grupo.</p>
   </section>;
