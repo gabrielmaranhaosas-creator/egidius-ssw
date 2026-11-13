@@ -13,8 +13,9 @@ Marcar todos mantém a ordem anterior e adiciona os demais na ordem do cadastro.
 ## Montar e confirmar os times
 
 - Cada time tem até sete jogadores, incluindo o goleiro da partida.
-- **Distribuir automaticamente** usa a ordem de chegada. Quem exceder a capacidade dos times fica disponível.
-- Com 21 presentes e dois times, sete ficarão disponíveis. Para três times, adicione outra equipe e distribua novamente.
+- A montagem manual é o caminho principal: em cada time, abra **Escolher jogadores** e marque os nomes. Desmarcar libera a vaga; quem já está em outro time aparece identificado. Use a busca para localizar nomes.
+- A distribuição por chegada é opcional e fica em **Opção adicional: distribuir por ordem de chegada**. Ela pede confirmação antes de substituir a montagem, não realiza sorteio e permite desfazer.
+- Com 21 presentes e dois times, sete ficarão disponíveis. Para três times, adicione outra equipe e escolha seus jogadores, preservando os times já montados.
 - Em **Escolher jogadores e fazer trocas**, atribua o time de cada jogador ou use **Trocar jogadores entre dois times**. A troca apresenta os nomes antes da aplicação e pode ser desfeita com **Desfazer organização**, enquanto ainda está no formulário.
 - A montagem em edição fica como **rascunho neste navegador**. Ela não é a formação oficial nem acompanha outros dispositivos automaticamente. Use **Retomar montagem** para voltar a ela depois de sair da tela ou recarregar.
 - Se o navegador informar que não conseguiu guardar o rascunho, mantenha a aba aberta e salve os times. A saída terá uma confirmação de risco.

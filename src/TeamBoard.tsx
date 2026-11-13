@@ -17,6 +17,8 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     return guardado && !montagemPersistidaNoServidor(guardado, rodada.equipes) ? guardado : criarRascunhoTimes(rodada.equipes, novoId);
   });
   const [erroRascunho, setErroRascunho] = useState('');
+  const [timeEmMontagem, setTimeEmMontagem] = useState('');
+  const [buscaManual, setBuscaManual] = useState('');
   const [trocaA, setTrocaA] = useState('');
   const [trocaB, setTrocaB] = useState('');
   const [erro, setErro] = useState('');
@@ -60,7 +62,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   function distribuirPorChegada() {
     if (!podeEditar || !presente.length || !equipes.length) return;
     if (presente.length < equipes.length) { setErro('Há mais times do que jogadores presentes.'); return; }
-    if (equipes.some(e => e.atletas.length) && !window.confirm('Redistribuir os presentes em rodízio por ordem de chegada? A formação só será aplicada após salvar.')) return;
+    if (!window.confirm('Distribuir por ordem de chegada? Isso substituirá a montagem deste formulário. Não é sorteio. Você poderá desfazer e revisar antes de confirmar os times.')) return;
     setFormacaoAnterior(copiarEquipes(equipes));
     const grupos = distribuirPorChegadaAteSete(presentesIds, equipes.length);
     alterarEquipes(equipes.map((e, i) => ({ ...e, atletas: grupos[i] })));
@@ -87,6 +89,9 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   }
   function removerEquipe(id: string) {
     if (!podeEditar || equipes.length <= 2) return;
+    const equipe = equipes.find(e => e.id === id);
+    if (equipe?.atletas.length && !window.confirm(`Remover ${equipe.nome}? Seus jogadores ficarão disponíveis. A alteração só será aplicada após salvar.`)) return;
+    setFormacaoAnterior(copiarEquipes(equipes));
     alterarEquipes(prev => prev.filter(e => e.id !== id));
     setErro(''); setAviso('');
   }
@@ -94,7 +99,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (!podeEditar) return;
     try {
       const proxima = atribuirJogador(equipes, presentesIds, id, equipeId);
-      if (proxima !== equipes) alterarEquipes(proxima);
+      if (proxima !== equipes) { setFormacaoAnterior(copiarEquipes(equipes)); alterarEquipes(proxima); }
       setErro(''); setAviso('');
     } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível alterar o time.'); }
   }
@@ -133,7 +138,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     <div className="team-board-heading"><div className="team-board-heading-text">
       <span className="team-board-kicker"><ShieldCheck size={18}/> EQUIPES FIXAS DA RODADA</span>
       <h3 id="team-board-title">Times do sábado</h3>
-      <p>Distribua os presentes em times de <strong>7 jogadores</strong>. Confira a formação e confirme para continuar às partidas.</p>
+      <p>Você escolhe quem joga em cada time. Use <strong>Escolher jogadores</strong> no time desejado e complete suas 7 vagas. Nenhum jogador é distribuído sem sua ação.</p>
     </div><span className={`team-board-status ${bloqueadas ? 'team-board-status--locked' : !ajustesLocais && rodada.equipes.length ? 'team-board-status--saved' : ''}`}>
       {bloqueadas ? <><LockKeyhole size={15}/> Protegidas</> : divergiu ? 'Revisão necessária' : ajustesLocais ? 'Ajustes por salvar' : rodada.equipes.length ? <><Check size={15}/> Salvas</> : 'Não definidas'}
     </span></div>
@@ -160,17 +165,31 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
           </div>
           <label className="multi-team-name">Nome do time<input value={e.nome} maxLength={40} disabled={!podeEditar} onChange={(ev: ChangeEvent<HTMLInputElement>) => renomear(e.id, ev.target.value)}/></label>
           <div className="multi-team-roster"><strong className={completo ? 'egc8-ready' : 'egc8-pending'}>{e.atletas.length}/7 jogadores · {!presencasValidas ? 'Confira as presenças' : completo ? 'Time completo' : e.atletas.length > 7 ? 'Acima do limite' : `Faltam ${Math.max(0, 7 - e.atletas.length)}`}</strong><p>{e.atletas.length ? e.atletas.map(id => nomePorId.get(id) ?? 'Jogador não localizado').join(' · ') : 'Nenhum jogador escalado'}</p><small>O goleiro será escolhido entre esses 7 na súmula.</small></div>
+          {podeEditar && <button type="button" className="ux-manual-open" aria-expanded={timeEmMontagem === e.id} onClick={() => { setTimeEmMontagem(timeEmMontagem === e.id ? '' : e.id); setBuscaManual(''); }}> {timeEmMontagem === e.id ? 'Fechar seleção' : 'Escolher jogadores'} — {e.nome}</button>}
+          {podeEditar && timeEmMontagem === e.id && <div className="ux-manual-picker">
+            <p>Marque quem joga no <strong>{e.nome}</strong>. Desmarque para liberar uma vaga. Para trocar entre times cheios, use a ferramenta de trocas abaixo.</p>
+            <label>Buscar para {e.nome}<input type="search" value={buscaManual} onChange={ev => setBuscaManual(ev.target.value)} placeholder="Nome do jogador"/></label>
+            <div role="group" aria-label={`Escolher jogadores do ${e.nome}`}>
+              {presente.filter(j => j.nome.toLocaleLowerCase('pt-BR').includes(buscaManual.toLocaleLowerCase('pt-BR'))).map(j => {
+                const origem = equipes.find(t => t.atletas.includes(j.id));
+                const marcado = origem?.id === e.id;
+                return <label key={j.id}><input type="checkbox" checked={marcado} disabled={!marcado && (!!origem || e.atletas.length >= 7)} onChange={() => atribuir(j.id, marcado ? '' : e.id)}/><span>{j.nome}<small>{marcado ? 'Neste time' : origem ? `Já está no ${origem.nome}` : e.atletas.length >= 7 ? 'Time completo' : 'Disponível'}</small></span></label>;
+              })}
+              {!presente.some(j => j.nome.toLocaleLowerCase('pt-BR').includes(buscaManual.toLocaleLowerCase('pt-BR'))) && <p>Nenhum jogador encontrado. Confira a busca.</p>}
+            </div>
+            <strong role="status">{e.atletas.length}/7 selecionados · {Math.max(0, 7-e.atletas.length)} vagas</strong>
+          </div>}
         </div>;
       })}
       {podeEditar && <button type="button" className="multi-team-add" onClick={adicionarEquipe}><Plus size={25}/><strong>Adicionar time</strong><small>Até 16 equipes por sábado</small></button>}
     </div>
     {podeEditar && presente.length > 0 && <div className="quick-team-tools" role="group" aria-label="Ferramentas rápidas para montagem dos times">
-      <div><strong>Montagem inteligente</strong><small>Até 7 por time, seguindo a chegada. Confira e confirme para aplicar.</small></div>
-      <button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir automaticamente</button>
+      <div><strong>Você controla a montagem</strong><small>Escolha os jogadores em cada time. Você também pode mover nomes na lista abaixo.</small></div>
       <button type="button" onClick={liberarTodos} disabled={!equipes.some(e => e.atletas.length)}><X size={19}/> Limpar escalação</button>
       <button type="button" onClick={desfazerOrganizacao} disabled={!formacaoAnterior}><RotateCcw size={19}/> Desfazer organização</button>
     </div>}
-    {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Depois, distribua novamente.</p>}
+    {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Escolha os jogadores do novo time; a montagem atual será mantida.</p>}
+    {podeEditar && presente.length > 0 && <details className="ux-maintenance"><summary>Opção adicional: distribuir por ordem de chegada</summary><div className="quick-team-tools"><p>Opcional, sem sorteio: preenche os times em rodízio pela chegada e substitui a montagem local. Revise antes de confirmar.</p><button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir por ordem de chegada</button></div></details>}
     {!presente.length ? <p className="team-board-empty">Volte à etapa Presentes para confirmar quem chegou.</p> : <details open className="multi-assignment ssw-times-distribuicao">
       <summary><span><strong>Escolher jogadores e fazer trocas</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
       <div className="ssw-times-distribuicao-conteudo">
