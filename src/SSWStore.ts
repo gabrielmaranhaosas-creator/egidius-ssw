@@ -13,7 +13,7 @@ export type Partida = PartidaV04 & { equipeIdA: string | null; equipeIdB: string
 export type FormacaoV04 = { timeA: string; timeB: string; atletasA: string[]; atletasB: string[] };
 export type RodadaV04 = { id: string; data: string; presencas: string[]; formacao: FormacaoV04 | null; jogos: PartidaV04[] };
 export type DadosV04 = { versao: 4; jogadores: Jogador[]; rodadas: RodadaV04[] };
-export type Rodada = { id: string; data: string; presencas: string[]; equipes: EquipeRodada[]; jogos: Partida[] };
+export type Rodada = { id: string; data: string; presencas: string[]; indisponiveis?: string[]; equipes: EquipeRodada[]; jogos: Partida[] };
 export type ItemLixeira = { id: string; rodadaId: string; excluidoEm: string; jogo: Partida };
 export type DadosSSW = { versao: 5; jogadores: Jogador[]; rodadas: Rodada[]; lixeira?: ItemLixeira[] };
 export type Estatistica = { id: string; nome: string; presencas: number; jogos: number; pontos: number; gols: number; vitorias: number; empates: number; derrotas: number; jogosGoleiro: number; golsSofridos: number };
@@ -22,6 +22,8 @@ export const STORAGE_KEY_V05 = 'egidius.v05.clube';
 export const STORAGE_KEY_V04 = 'egidius.v04.clube';
 export const STORAGE_KEY_V03 = 'egidius.v03.clube';
 export const STORAGE_KEY_V02 = 'egidius.v02.rodadas';
+let gravacaoPermitida=true;
+export function definirGravacaoPermitida(value:boolean){gravacaoPermitida=value;}
 const CHANGE_EVENT = 'egidius:dados-alterados';
 
 export function ehSabado(value: string): boolean {
@@ -104,13 +106,12 @@ function dadosValidos(data: unknown): data is DadosSSW {
     data.rodadas.every(r => {
       if (!registro(r) || typeof r.id !== 'string' || typeof r.data !== 'string' || !ehSabado(r.data) ||
           !idsValidos(r.presencas) || !Array.isArray(r.equipes) || !Array.isArray(r.jogos)) return false;
+      if(r.indisponiveis!==undefined&&(!idsValidos(r.indisponiveis)||r.indisponiveis.some(id=>!(r.presencas as string[]).includes(id))))return false;
       const equipes = r.equipes;
       if (!equipes.every(e => registro(e) && typeof e.id === 'string' && typeof e.nome === 'string' && idsValidos(e.atletas))) return false;
       if (new Set(equipes.map(e => e.id)).size !== equipes.length) return false;
       if (new Set(equipes.flatMap(e => e.atletas)).size !== equipes.flatMap(e => e.atletas).length) return false;
-      return r.jogos.every(j => partidaValida(j) &&
-        (j.equipeIdA === null || equipes.some(e => e.id === j.equipeIdA)) &&
-        (j.equipeIdB === null || equipes.some(e => e.id === j.equipeIdB)));
+      return r.jogos.every(partidaValida); // IDs de equipes podem referir-se à formação histórica.
     });
 }
 
@@ -254,6 +255,7 @@ function gravarTexto(conteudo: string): DadosSSW {
   return dados;
 }
 export function desfazerAcao(): string {
+  if(!gravacaoPermitida)throw new Error('Acesso de consulta: alterações não permitidas.');
   const ultima = desfaziveis.at(-1);
   if (!ultima) throw new Error('Nenhuma ação recente disponível para desfazer nesta aba.');
   if (JSON.stringify(cache) !== ultima.depois) throw new Error('Os dados mudaram. O histórico não pode ser aplicado com segurança.');
@@ -263,6 +265,7 @@ export function desfazerAcao(): string {
   return ultima.descricao;
 }
 export function refazerAcao(): string {
+  if(!gravacaoPermitida)throw new Error('Acesso de consulta: alterações não permitidas.');
   const ultima = refaziveis.at(-1);
   if (!ultima) throw new Error('Nenhuma ação recente disponível para refazer nesta aba.');
   if (JSON.stringify(cache) !== ultima.antes) throw new Error('Os dados mudaram. O histórico não pode ser reaplicado com segurança.');
@@ -272,6 +275,7 @@ export function refazerAcao(): string {
   return ultima.descricao;
 }
 export function atualizarDados(updater: (dados: DadosSSW) => DadosSSW, descricaoHistorico?: string) {
+  if(!gravacaoPermitida)throw new Error('Acesso de consulta: peça a um organizador para registrar alterações.');
   if (leituraBloqueada) throw new Error('A leitura dos dados locais falhou. Por segurança, não é permitido sobrescrevê-los. Exporte os dados antigos pelas ferramentas do navegador antes de qualquer correção.');
   const antes = JSON.stringify(cache);
   const proposed = updater(cache);

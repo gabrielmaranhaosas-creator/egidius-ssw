@@ -1,3 +1,4 @@
+import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { AlertTriangle, CheckCheck, FileArchive, ImagePlus, ShieldCheck, XCircle } from 'lucide-react';
@@ -17,6 +18,7 @@ export function BulkMediaImport(){
   const [done,setDone]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  useTrabalhoPendente('importar-imagens',busy||(!!preview&&!done),'Importação de imagens ainda não concluída',busy);
   const selected=useMemo(()=>preview?.items.filter(i=>enabled[i.item_id] && !!chosen[i.item_id]) || [],[preview,enabled,chosen]);
   const knownIds=preview?.athletes||{};
   const valid=selected.length>0 && selected.every(i=>!!knownIds[chosen[i.item_id]]) && confirm && !busy && !done;

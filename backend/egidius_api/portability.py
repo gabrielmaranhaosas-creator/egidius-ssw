@@ -39,7 +39,13 @@ def copy_rows(source, destination):
     for table in Base.metadata.sorted_tables:
         counts[table.name] = 0
         if table.name not in available:
-            if table.name == 'pending_media_deletions': continue
+            if table.name=='user_roles':
+                users=source.execute(select(Base.metadata.tables['users'].c.username)).scalars().all()
+                admins=[{'username':u,'role':'admin'} for u in users if u not in ('confrade_ssw','operador_local')]
+                if admins:destination.execute(table.insert(),admins)
+                counts[table.name]=len(admins)
+                continue
+            if table.name in ('pending_media_deletions','media_trash','operation_audit','invite_access'): continue
             raise ValueError('Tabela obrigatória ausente na origem.')
         rows = source.execute(select(table)).mappings()
         while batch := rows.fetchmany(128):
@@ -86,7 +92,7 @@ def has_ready_database(engine):
         tables = set(inspect(con).get_table_names())
         if not tables.intersection(Base.metadata.tables):
             return False
-        if not (set(Base.metadata.tables) - {'pending_media_deletions'}).issubset(tables):
+        if not (set(Base.metadata.tables) - {'pending_media_deletions','user_roles','media_trash','operation_audit','invite_access'}).issubset(tables):
             raise ValueError('Base externa parcialmente configurada; nenhuma carga será aplicada.')
         count = con.execute(text('SELECT COUNT(*) FROM users')).scalar_one()
         row = con.execute(select(State.__table__).where(State.id == 1)).mappings().first()
@@ -132,7 +138,7 @@ def restore_empty(source, engine, storage, media_folder=None):
                     uploaded.append(row['stored_name'])
                 counts = copy_rows(src, dst)
             if engine.dialect.name == 'postgresql':
-                for name in ('state', 'state_history', 'viagem_ssw_state'):
+                for name in ('state', 'state_history', 'viagem_ssw_state', 'operation_audit'):
                     maximum = dst.execute(text('SELECT MAX(id) FROM ' + name)).scalar_one()
                     dst.execute(text("SELECT setval(pg_get_serial_sequence(:table_name, 'id'), :value, :called)"),
                                 {'table_name': name, 'value': max(maximum or 0, 1), 'called': maximum is not None})

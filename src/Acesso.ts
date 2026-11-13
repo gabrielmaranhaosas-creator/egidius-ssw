@@ -1,4 +1,4 @@
-export type AuthStatus = { authenticated: boolean; username?: string; csrf?: string; setup_required?: boolean };
+export type AuthStatus = { authenticated: boolean; role?: 'viewer'|'operator'|'admin'; username?: string; csrf?: string; setup_required?: boolean };
 type Api = <T>(path: string, options?: RequestInit) => Promise<T>;
 
 // Uma entrada por vez, inclusive quando o React repete o efeito no desenvolvimento.

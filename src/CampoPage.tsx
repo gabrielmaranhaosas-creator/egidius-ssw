@@ -128,7 +128,7 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
       </select> : <p>Não há sábados cadastrados. Crie o primeiro para começar.</p>}
       <div className="campo-simple-summary" aria-label="Resumo do sábado">
         <span><strong>{progresso.presentes}</strong> presentes</span>
-        <span><strong>{progresso.equipes}</strong> times</span>
+        <span><strong>{progresso.timesCompletos}</strong> times completos</span>
         <span><strong>{progresso.jogos}</strong> jogos</span>
       </div>
     </section>

@@ -1,3 +1,5 @@
+import { usePapel } from './Permissoes';
+import { normalizarBusca } from './Busca';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Check, LockKeyhole, Plus, Save, ShieldCheck, Trash2, UsersRound, RotateCcw, Shuffle, X, Search, ChevronDown } from 'lucide-react';
@@ -32,7 +34,8 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   const ajustesLocais = rascunho.editado && alterado;
   const divergiu = rascunho.origem !== assinaturaAtual;
   const bloqueadas = equipesBloqueadas(rodada);
-  const podeEditar = !bloqueadas && !divergiu;
+  const papel=usePapel();
+  const podeEditar = papel!=='viewer' && !bloqueadas && !divergiu;
   const presente = jogadoresPorChegada(rodada, jogadores);
   const presentesIds = presente.map(j => j.id);
   const nomePorId = new Map(jogadores.map(j => [j.id, j.nome]));
@@ -74,7 +77,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (!window.confirm('Retirar todos os jogadores dos times neste formulário? A formação só será aplicada após salvar.')) return;
     setFormacaoAnterior(copiarEquipes(equipes));
     alterarEquipes(equipes.map(e => ({ ...e, atletas: [] })));
-    setAviso('Alocação limpa apenas no formulário. Use Desfazer organização para recuperar.'); setErro('');
+    setAviso('Alocação limpa apenas no formulário. Use Desfazer última alteração para recuperar.'); setErro('');
   }
   function desfazerOrganizacao() {
     if (!podeEditar || !formacaoAnterior) return;
@@ -136,7 +139,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
 
   return <section className="team-board" aria-labelledby="team-board-title">
     <div className="team-board-heading"><div className="team-board-heading-text">
-      <span className="team-board-kicker"><ShieldCheck size={18}/> EQUIPES FIXAS DA RODADA</span>
+      <span className="team-board-kicker"><ShieldCheck size={18}/> PREPARAR OS PRÓXIMOS JOGOS</span>
       <h3 id="team-board-title">Times do sábado</h3>
       <p>Você escolhe quem joga em cada time. Use <strong>Escolher jogadores</strong> no time desejado e complete suas 7 vagas. Nenhum jogador é distribuído sem sua ação.</p>
     </div><span className={`team-board-status ${bloqueadas ? 'team-board-status--locked' : !ajustesLocais && rodada.equipes.length ? 'team-board-status--saved' : ''}`}>
@@ -154,7 +157,8 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     {erroRascunho && <p className="rounds-validation" role="alert">{erroRascunho}</p>}
     {ajustesLocais && !erroRascunho && <p className="ux-draft-note" role="status">Rascunho guardado neste navegador. Os times ainda precisam ser confirmados.</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
-    <div className="team-board-count"><UsersRound size={19}/> {presente.length} presentes · {equipes.length} times · {resumo.escalados} escalados · {resumo.disponiveis.length} disponíveis</div>
+    {rodada.jogos.length > 0 && <p className="ux-draft-note">Esta montagem vale para partidas novas. As escalações, goleiros e resultados dos jogos já criados permanecem iguais.</p>}
+    <div className="team-board-count"><UsersRound size={19}/> {presente.length} disponíveis para jogar · {equipes.length} times · {resumo.escalados} escalados · {resumo.disponiveis.length} disponíveis</div>
     <div className="multi-team-grid">
       {equipes.map((e, i) => {
         const presencasValidas = e.atletas.every(id => presentesIds.includes(id));
@@ -170,12 +174,12 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
             <p>Marque quem joga no <strong>{e.nome}</strong>. Desmarque para liberar uma vaga. Para trocar entre times cheios, use a ferramenta de trocas abaixo.</p>
             <label>Buscar para {e.nome}<input type="search" value={buscaManual} onChange={ev => setBuscaManual(ev.target.value)} placeholder="Nome do jogador"/></label>
             <div role="group" aria-label={`Escolher jogadores do ${e.nome}`}>
-              {presente.filter(j => j.nome.toLocaleLowerCase('pt-BR').includes(buscaManual.toLocaleLowerCase('pt-BR'))).map(j => {
+              {presente.filter(j => normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))).map(j => {
                 const origem = equipes.find(t => t.atletas.includes(j.id));
                 const marcado = origem?.id === e.id;
                 return <label key={j.id}><input type="checkbox" checked={marcado} disabled={!marcado && (!!origem || e.atletas.length >= 7)} onChange={() => atribuir(j.id, marcado ? '' : e.id)}/><span>{j.nome}<small>{marcado ? 'Neste time' : origem ? `Já está no ${origem.nome}` : e.atletas.length >= 7 ? 'Time completo' : 'Disponível'}</small></span></label>;
               })}
-              {!presente.some(j => j.nome.toLocaleLowerCase('pt-BR').includes(buscaManual.toLocaleLowerCase('pt-BR'))) && <p>Nenhum jogador encontrado. Confira a busca.</p>}
+              {!presente.some(j => normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))) && <p>Nenhum jogador encontrado. Confira a busca.</p>}
             </div>
             <strong role="status">{e.atletas.length}/7 selecionados · {Math.max(0, 7-e.atletas.length)} vagas</strong>
           </div>}
@@ -186,12 +190,12 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     {podeEditar && presente.length > 0 && <div className="quick-team-tools" role="group" aria-label="Ferramentas rápidas para montagem dos times">
       <div><strong>Você controla a montagem</strong><small>Escolha os jogadores em cada time. Você também pode mover nomes na lista abaixo.</small></div>
       <button type="button" onClick={liberarTodos} disabled={!equipes.some(e => e.atletas.length)}><X size={19}/> Limpar escalação</button>
-      <button type="button" onClick={desfazerOrganizacao} disabled={!formacaoAnterior}><RotateCcw size={19}/> Desfazer organização</button>
+      <button type="button" onClick={desfazerOrganizacao} disabled={!formacaoAnterior}><RotateCcw size={19}/> Desfazer última alteração</button>
     </div>}
     {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Escolha os jogadores do novo time; a montagem atual será mantida.</p>}
     {podeEditar && presente.length > 0 && <details className="ux-maintenance"><summary>Opção adicional: distribuir por ordem de chegada</summary><div className="quick-team-tools"><p>Opcional, sem sorteio: preenche os times em rodízio pela chegada e substitui a montagem local. Revise antes de confirmar.</p><button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir por ordem de chegada</button></div></details>}
-    {!presente.length ? <p className="team-board-empty">Volte à etapa Presentes para confirmar quem chegou.</p> : <details open className="multi-assignment ssw-times-distribuicao">
-      <summary><span><strong>Escolher jogadores e fazer trocas</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
+    {!presente.length ? <p className="team-board-empty">Volte à etapa Presentes para confirmar quem chegou.</p> : <details className="multi-assignment ssw-times-distribuicao">
+      <summary><span><strong>Lista geral, transferências e trocas</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
       <div className="ssw-times-distribuicao-conteudo">
         {podeEditar && resumo.escalados >= 2 && <fieldset className="ux-player-swap"><legend>Trocar jogadores entre dois times</legend>
           <label>Primeiro jogador<select aria-label="Primeiro jogador da troca" value={trocaA} onChange={e => { setTrocaA(e.target.value); setTrocaB(''); }}><option value="">Escolha um jogador</option>{equipes.map(e => <optgroup key={e.id} label={e.nome}>{e.atletas.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label>

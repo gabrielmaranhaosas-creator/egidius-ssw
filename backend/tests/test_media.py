@@ -90,6 +90,12 @@ def test_round_match_and_delete(ctx):
     assert c.delete(f'/api/media/{item["id"]}',headers={}).status_code==403
     assert c.delete(f'/api/media/{item["id"]}',headers=h).status_code==200
     assert c.get(item['url']).status_code==404
+    assert list((tmp/'media').glob('*.mp4'))  # recuperável na lixeira
+    assert c.get('/api/media/trash').json()['items'][0]['id']==item['id']
+    assert c.post(f'/api/media/{item["id"]}/restore',headers=h).status_code==200
+    assert c.get(item['url']).content==MP4
+    assert c.delete(f'/api/media/{item["id"]}',headers=h).status_code==200
+    assert c.delete(f'/api/media/{item["id"]}/purge',headers=h).status_code==200
     assert not list((tmp/'media').glob('*.mp4'))
 
 

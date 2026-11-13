@@ -42,6 +42,6 @@ function criarCarregador(inicial = { versao: 5, jogadores: [], rodadas: [] }, ar
     }, module, module.exports, window, webcrypto, Event);
     return module.exports;
   }
-  return { load, storage };
+  return { load, storage, window };
 }
 module.exports = { criarCarregador, load: criarCarregador().load };

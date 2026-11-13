@@ -1,3 +1,6 @@
+import { LixeiraArquivos } from './LixeiraArquivos';
+import { useSabadoAtivo, guardarSabadoAtivo } from './ActiveRound';
+import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Camera, CheckCheck, Film, ImagePlus, Images, LoaderCircle, RefreshCcw, Save, Trash2, Undo2, Upload, Video, X, FileText, Download } from 'lucide-react';
@@ -9,7 +12,8 @@ import './MediaPage.css';
 export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   const dados=useDadosSSW();
   const rounds=useMemo(()=>[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)),[dados.rodadas]);
-  const [roundId,setRoundId]=useState('');
+  const roundId=useSabadoAtivo(rounds);
+  const setRoundId=guardarSabadoAtivo;
   const [matchId,setMatchId]=useState('');
   const [kind,setKind]=useState<'photo'|'video'|'document'>(documentsOnly?'document':'photo');
   const [files,setFiles]=useState<File[]>([]);
@@ -24,7 +28,7 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   const loading=useRef(0);
   const currentRound=rounds.find(r=>r.id===roundId);
   const selectedCount=selected.length;
-  useEffect(()=>{if(!roundId&&rounds.length)setRoundId(rounds[0].id);},[roundId,rounds]);
+  useTrabalhoPendente('media',busy||files.length>0||!!caption,'Arquivos selecionados ou legenda ainda não enviados',busy);
   useEffect(()=>{setMatchId('');setSelected([]);},[roundId]);
   async function reload(){
     const serial=++loading.current;
@@ -75,15 +79,15 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   }
   async function deleteSelection(ids:string[]){
     if(!ids.length||busy)return;
-    const approved=window.confirm(`Excluir definitivamente ${ids.length} arquivo(s) do servidor? Esta ação não pode ser desfeita.`);
+    const approved=window.confirm(`Enviar ${ids.length} arquivo(s) à lixeira? Você poderá restaurá-los pela Lixeira de arquivos.`);
     if(!approved)return;
     setBusy(true);setError('');setMessage('');
     let removed=0;
     try{
       const csrf=await getCsrf();
       for(const id of ids){await removeMedia(id,csrf);removed++;}
-      setMessage(`${removed} arquivo(s) excluído(s).`);setSelected([]);
-    }catch(e){setError(`${(e as Error).message}. ${removed} arquivo(s) já excluído(s).`);}
+      setMessage(`${removed} arquivo(s) enviado(s) à lixeira.`);setSelected([]);
+    }catch(e){setError(`${(e as Error).message}. ${removed} arquivo(s) já enviado(s) à lixeira.`);}
     finally{setBusy(false);await reload();}
   }
   const checked=(id:string)=>selected.includes(id);
@@ -99,7 +103,7 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
     {message&&<p className="media-alert" role="status">{message}</p>}
     <section className="media-panel">
       <div className="media-heading"><h2>Enviar arquivos</h2><p>Escolha o sábado e, se desejar, a partida. A galeria poderá receber novas imagens a qualquer momento.</p></div>
-      {rounds.length===0?<p className="media-empty">Crie um sábado em Sábado completo para organizar os arquivos.</p>:<>
+      {rounds.length===0?<p className="media-empty">Crie um sábado em Organizar sábado para organizar os arquivos.</p>:<>
         <div className="media-input-grid">
           <label>Sábado<select value={roundId} onChange={e=>setRoundId(e.target.value)} disabled={busy}>{rounds.map(r=><option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}</select></label>
           <label>Partida<select value={matchId} onChange={e=>setMatchId(e.target.value)} disabled={busy}><option value="">Galeria geral do sábado</option>{currentRound?.jogos.map(j=><option key={j.id} value={j.id}>Jogo {j.numero} · {j.timeA} × {j.timeB}</option>)}</select></label>
@@ -111,6 +115,7 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
           <p className="media-selected-files">{files.length} selecionado(s) · {files.map(f=>f.name).join(', ')}</p>
           <button type="button" className="media-secondary media-undo-selection" onClick={undoSelection} disabled={busy} title="Retirar os arquivos selecionados que ainda não foram enviados"><Undo2 size={19} aria-hidden="true"/>Desfazer seleção</button>
         </div>}
+        <p className="media-footer-note">Destino: {currentRound ? dataFormatada(currentRound.data) : 'selecione um sábado'} · {matchId ? `partida ${currentRound?.jogos.find(j=>j.id===matchId)?.numero}` : 'galeria geral'}</p>
         <button type="button" className="media-primary" onClick={()=>void upload()} disabled={!roundId||!files.length||busy}>{busy?<LoaderCircle size={22}/>:<Upload size={22}/>} {progress||`Enviar ${files.length?files.length+' arquivo(s)':'mídia'} ao servidor`}</button>
       </>}
     </section>
@@ -123,5 +128,6 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
       </article>)}</div>}
       <p className="media-footer-note"><Video size={19}/> Para guardar registros e arquivos juntos, baixe o backup completo em Importar e arquivos → Guia e backup.</p>
     </section>
+    <LixeiraArquivos atualizar={()=>void reload()}/>
   </section>;
 }

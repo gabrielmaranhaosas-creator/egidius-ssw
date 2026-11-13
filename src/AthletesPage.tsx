@@ -1,3 +1,6 @@
+import { usePapel } from './Permissoes';
+import { normalizarBusca } from './Busca';
+import { podeAbandonarEdicao, useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, BookOpenText, Camera, Check, CircleHelp, Download, Filter, Images, Plus, RefreshCw, Save, Search, ShieldCheck, Trophy, UserRound } from 'lucide-react';
@@ -23,6 +26,7 @@ const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(n=>n[0]).j
 const errorMessage=async(r:Response)=>{const e=await r.json().catch(()=>null) as {detail?:string}|null;return e?.detail||`Erro HTTP ${r.status}`;};
 const title=(nome:string,p:AthleteProfile)=>p.nomeExibicao.trim()||p.apelido.trim()||nome;
 export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
+  const consulta=usePapel()==='viewer';
   const dados=useDadosSSW();
   const stats=useMemo(()=>classificar(dados),[dados]);
   const [list,setList]=useState<ProfileRecord[]>([]);
@@ -39,6 +43,7 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
   const [athleteImages,setAthleteImages]=useState<MediaItem[]>([]);
   const [uploadingImage,setUploadingImage]=useState(false);
   const dirty=JSON.stringify(draft)!==JSON.stringify(baseline);
+  useTrabalhoPendente('ficha',dirty||pending||uploadingImage,'Ficha do jogador com alterações não salvas',pending||uploadingImage);
   const records=useMemo(()=>new Map(list.map(p=>[p.athlete_id,p])),[list]);
   const athlete=dados.jogadores.find(a=>a.id===selectedId);
   const athStats=stats.find(s=>s.id===selectedId);
@@ -48,8 +53,8 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
   const activePortrait=draft.retratoPreferido==='caricatura'?(caricatura||foto):(foto||caricatura);
   const visible=dados.jogadores.filter(j=>{
     const p=records.get(j.id)?.profile||EMPTY;
-    const text=`${j.nome} ${p.apelido} ${p.nomeExibicao}`.toLocaleLowerCase('pt-BR');
-    return text.includes(query.trim().toLocaleLowerCase('pt-BR')) && (filter==='todos'||p.situacao===filter);
+    const text=normalizarBusca(`${j.nome} ${p.apelido} ${p.nomeExibicao}`);
+    return text.includes(normalizarBusca(query)) && (filter==='todos'||p.situacao===filter);
   }).sort((a,b)=>title(a.nome,records.get(a.id)?.profile||EMPTY).localeCompare(title(b.nome,records.get(b.id)?.profile||EMPTY),'pt-BR'));
   async function reload(){
     setError('');
@@ -85,13 +90,13 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
   }
   async function deletePortrait(item:MediaItem){
     if(!selectedId||uploadingImage)return;
-    if(!window.confirm(`Excluir definitivamente ${item.kind==='photo'?'esta foto':'esta caricatura'}? A ação não pode ser desfeita.`))return;
+    if(!window.confirm(`Enviar ${item.kind==='photo'?'esta foto':'esta caricatura'} à lixeira? Você poderá restaurar na área Mídia → Lixeira de arquivos.`))return;
     setUploadingImage(true);setError('');
-    try{const csrf=await getCsrf();await removeMedia(item.id,csrf);await refreshImages(selectedId);setNotice('Imagem removida.');}
+    try{const csrf=await getCsrf();await removeMedia(item.id,csrf);await refreshImages(selectedId);setNotice('Imagem enviada à lixeira. Restaure em Mídia → Lixeira de arquivos.');}
     catch(e){setError((e as Error).message);}finally{setUploadingImage(false);}
   }
   function selectAthlete(id:string|null){
-    if(dirty && !window.confirm('Há alterações não salvas. Descartar e continuar?'))return;
+    if(!podeAbandonarEdicao())return;
     setSelectedId(id);setNotice('');setError('');
     const current=id?records.get(id):undefined;
     const p=current?.profile||EMPTY;
@@ -135,12 +140,12 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
       <div className="athletes-detail">
         <section className="athletes-identification">
           <div className="athletes-sticker athletes-sticker--feature"><div className="athletes-sticker-top"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><span>{draft.numeroFigurinha?`Nº ${String(draft.numeroFigurinha).padStart(3,'0')}`:'EDIÇÃO SSW'}</span></div><div className="athletes-portrait">{activePortrait?<img className="athletes-portrait-photo" src={activePortrait.url} alt={`Retrato de ${title(athlete.nome,draft)}`}/>:<span aria-hidden="true">{initials(title(athlete.nome,draft))}</span>}{!activePortrait&&<div className="athletes-portrait-hint"><Camera size={19}/> Escolha uma foto ou caricatura</div>}</div><div className="athletes-sticker-bottom"><strong>{title(athlete.nome,draft)}</strong><small>{draft.apelido?`APELIDO: ${draft.apelido}`:draft.posicao==='nao-informada'?'FUTURO ÁLBUM DE FIGURINHAS':POSICOES.find(([key])=>key===draft.posicao)?.[1].toUpperCase()}</small></div></div>
-          <div className="athlete-media-tools"><h3><Images size={21}/> Foto e caricatura</h3><p>Envie imagens agora ou depois. Aceita JPG, PNG e WebP (até 12 MB).</p><div className="athlete-media-uploads"><label><Camera size={18}/> Enviar foto<input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={uploadingImage} onChange={e=>{void uploadPortrait(e.target.files?.[0],'photo');e.target.value='';}}/></label><label><Images size={18}/> Enviar caricatura<input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={uploadingImage} onChange={e=>{void uploadPortrait(e.target.files?.[0],'caricature');e.target.value='';}}/></label></div><div className="athlete-media-previews">{[foto,caricatura].map((item,i)=>item?<div key={item.id} className="athlete-mini-media"><img src={item.url} alt={i===0?'Foto':'Caricatura'}/><span>{i===0?'Foto':'Caricatura'}</span><button type="button" onClick={()=>void deletePortrait(item)} disabled={uploadingImage} aria-label={`Excluir ${i===0?'foto':'caricatura'}`}>Excluir</button></div>:null)}</div><p className="athlete-media-help">{uploadingImage?'Transferindo imagem para o servidor…':'A figurinha usa o retrato preferido cadastrado na ficha. As imagens ficam no servidor.'}</p></div>
+          <div className="athlete-media-tools"><h3><Images size={21}/> Foto e caricatura</h3><p>Envie imagens agora ou depois. Aceita JPG, PNG e WebP (até 12 MB).</p><div className="athlete-media-uploads"><label><Camera size={18}/> Enviar foto<input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={consulta||uploadingImage} onChange={e=>{void uploadPortrait(e.target.files?.[0],'photo');e.target.value='';}}/></label><label><Images size={18}/> Enviar caricatura<input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled={consulta||uploadingImage} onChange={e=>{void uploadPortrait(e.target.files?.[0],'caricature');e.target.value='';}}/></label></div><div className="athlete-media-previews">{[foto,caricatura].map((item,i)=>item?<div key={item.id} className="athlete-mini-media"><img src={item.url} alt={i===0?'Foto':'Caricatura'}/><span>{i===0?'Foto':'Caricatura'}</span><button type="button" onClick={()=>void deletePortrait(item)} disabled={consulta||uploadingImage} aria-label={`Excluir ${i===0?'foto':'caricatura'}`}>Excluir</button></div>:null)}</div><p className="athlete-media-help">{uploadingImage?'Transferindo imagem para o servidor…':'A figurinha usa o retrato preferido cadastrado na ficha. As imagens ficam no servidor.'}</p></div>
           <div className="athletes-mini-stats"><div><strong>{athStats?.presencas??0}</strong><small>Presenças</small></div><div><strong>{athStats?.jogos??0}</strong><small>Jogos</small></div><div><strong>{athStats?.gols??0}</strong><small>Gols</small></div><div><strong>{athStats?.pontos??0}</strong><small>Pontos</small></div></div>
         </section>
         <form className="athletes-form" onSubmit={e=>void save(e)}>
           <div className="athletes-form-header"><BookOpenText size={23}/><div><h2>Ficha do atleta</h2><p>Nome oficial: <strong>{athlete.nome}</strong>. A ficha visual não altera as súmulas.</p></div></div>
-          <div className="athletes-fields">
+          <fieldset disabled={consulta||pending} className="athletes-fields ux-fields-reset">
             <label>Nome de exibição<input maxLength={80} value={draft.nomeExibicao} onChange={e=>update('nomeExibicao',e.target.value)} placeholder={athlete.nome}/></label>
             <label>Apelido<input maxLength={60} value={draft.apelido} onChange={e=>update('apelido',e.target.value)} placeholder="Como é chamado no campo"/></label>
             <label>Posição<select value={draft.posicao} onChange={e=>update('posicao',e.target.value as Posicao)}>{POSICOES.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
@@ -151,8 +156,8 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
             <label>Entrada no grupo<input type="date" value={draft.entradaGrupo??''} onChange={e=>update('entradaGrupo',e.target.value||null)}/></label>
             <label className="athletes-fields--wide">Bordão ou frase marcante<input maxLength={180} value={draft.bordao} onChange={e=>update('bordao',e.target.value)} placeholder="Uma frase que todo mundo conhece"/></label>
             <label className="athletes-fields--wide">Mini biografia<textarea maxLength={600} rows={5} value={draft.miniBio} onChange={e=>update('miniBio',e.target.value)} placeholder="Histórias, características e curiosidades do atleta"/><small>{draft.miniBio.length}/600 caracteres</small></label>
-          </div>
-          <div className="athletes-form-actions"><span><ShieldCheck size={18}/> Revisão {revision} · gravação individual no servidor</span><button type="submit" className="athletes-save" disabled={pending||!dirty}><Save size={21}/>{pending?'Salvando…':'Salvar ficha'}</button></div>
+          </fieldset>
+          <div className="athletes-form-actions"><span><ShieldCheck size={18}/> Revisão {revision} · gravação individual no servidor</span><button type="submit" className="athletes-save" disabled={consulta||pending||!dirty}><Save size={21}/>{pending?'Salvando…':'Salvar ficha'}</button></div>
         </form>
       </div>
     </> : <>

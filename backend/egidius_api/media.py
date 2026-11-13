@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session as DbSession
 
-from .db import MediaAsset, State, PendingMediaDeletion, utcnow
+from .db import MediaAsset, State, PendingMediaDeletion, MediaTrash, utcnow
 from .storage import get_storage, reserve_quota, cleanup_deletions
 
 MEDIA_ROOT = Path(__file__).resolve().parents[1] / 'var' / 'media'
@@ -69,7 +69,7 @@ def serialize(row: MediaAsset) -> dict:
 def newest_portraits(db: DbSession, athlete_id: str) -> dict:
     recent = db.scalars(select(MediaAsset).where(
         MediaAsset.scope == 'athlete', MediaAsset.athlete_id == athlete_id,
-        MediaAsset.kind.in_(['photo', 'caricature'])
+        MediaAsset.kind.in_(['photo', 'caricature']), ~MediaAsset.id.in_(select(MediaTrash.media_id))
     ).order_by(desc(MediaAsset.created_at), desc(MediaAsset.id))).all()
     latest: dict[str, str | None] = {'fotoMediaId': None, 'caricaturaMediaId': None}
     for row in recent:
@@ -112,7 +112,7 @@ def media_router(session_auth, check_csrf, get_db):
                    round_id: str | None = Query(None, max_length=140),
                    match_id: str | None = Query(None, max_length=140),
                    _session=Depends(session_auth), db: DbSession = Depends(get_db)):
-        query = select(MediaAsset)
+        query = select(MediaAsset).where(~MediaAsset.id.in_(select(MediaTrash.media_id)))
         if scope == 'athlete':
             if not athlete_id:
                 raise HTTPException(422, 'Informe o atleta.')
@@ -208,6 +208,7 @@ def media_router(session_auth, check_csrf, get_db):
         row = db.get(MediaAsset, media_id)
         if not row:
             raise HTTPException(404, 'Arquivo não encontrado.')
+        if db.get(MediaTrash, media_id):raise HTTPException(404, 'Arquivo na lixeira. Restaure antes de abrir.')
         storage = get_storage()
         if storage.remote:
             return RedirectResponse(storage.signed_url(row.stored_name, row.mime_type, row.original_name,
@@ -235,17 +236,35 @@ def media_router(session_auth, check_csrf, get_db):
         db.commit()
         return serialize(row)
 
+    @router.get('/trash')
+    def list_trash(_session=Depends(session_auth),db:DbSession=Depends(get_db)):
+        rows=db.execute(select(MediaAsset,MediaTrash).join(MediaTrash,MediaTrash.media_id==MediaAsset.id).order_by(MediaTrash.deleted_at.desc()).limit(300)).all()
+        return {'items':[{**serialize(row),'deleted_at':trash.deleted_at.isoformat(),'deleted_by':trash.actor} for row,trash in rows]}
+
+    @router.post('/{media_id}/restore')
+    def restore_media(media_id:str,_session=Depends(check_csrf),db:DbSession=Depends(get_db)):
+        row=db.get(MediaAsset,media_id);trash=db.get(MediaTrash,media_id)
+        if not row or not trash:raise HTTPException(404,'Arquivo não está na lixeira.')
+        validate_target(db,row.scope,row.kind,row.athlete_id,row.round_id,row.match_id)
+        db.delete(trash);db.commit()
+        return serialize(row)
+
+    @router.delete('/{media_id}/purge')
+    def purge_media(media_id:str,_session=Depends(check_csrf),db:DbSession=Depends(get_db)):
+        from .permissions import require_admin
+        require_admin(db,_session.username)
+        row=db.get(MediaAsset,media_id);trash=db.get(MediaTrash,media_id)
+        if not row or not trash:raise HTTPException(409,'Envie o arquivo à lixeira antes de excluir definitivamente.')
+        db.add(PendingMediaDeletion(stored_name=row.stored_name,size=row.size))
+        db.delete(trash);db.flush();db.delete(row);db.commit();cleanup_deletions(db);db.commit()
+        return {'ok':True}
+
     @router.delete('/{media_id}')
     def delete_media(media_id: str, _session=Depends(check_csrf), db: DbSession = Depends(get_db)):
-        row = db.get(MediaAsset, media_id)
-        if not row: raise HTTPException(404, 'Arquivo não encontrado.')
-        name = row.stored_name
-        # Não apague o objeto se a confirmação SQL falhar.
-        db.add(PendingMediaDeletion(stored_name=name, size=row.size))
-        db.delete(row)
+        row=db.get(MediaAsset,media_id)
+        if not row:raise HTTPException(404,'Arquivo não encontrado.')
+        if not db.get(MediaTrash,media_id):db.add(MediaTrash(media_id=media_id,actor=_session.username))
         db.commit()
-        cleanup_deletions(db)
-        db.commit()
-        return {'ok': True}
+        return {'ok':True,'recoverable':True}
 
     return router

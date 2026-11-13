@@ -46,6 +46,7 @@ class Rodada(Base):
     id: str
     data: str
     presencas: list[str]
+    indisponiveis: list[str] = Field(default_factory=list)
     equipes: list[Equipe]
     jogos: list[Partida]
 
@@ -59,17 +60,14 @@ class Rodada(Base):
             raise ValueError('A rodada deve acontecer em sábado')
         if len(set(self.presencas)) != len(self.presencas):
             raise ValueError('Presença repetida')
+        if len(set(self.indisponiveis))!=len(self.indisponiveis) or any(id not in self.presencas for id in self.indisponiveis):
+            raise ValueError('Disponibilidade deve referir-se a presenças únicas.')
         ids = [e.id for e in self.equipes]
         if len(ids) != len(set(ids)):
             raise ValueError('ID de time repetido')
         jogadores = [a for e in self.equipes for a in e.atletas]
         if len(jogadores) != len(set(jogadores)):
             raise ValueError('Jogador escalado em mais de um time')
-        for j in self.jogos:
-            if j.equipeIdA is not None and j.equipeIdA not in ids:
-                raise ValueError('Equipe A não existe na rodada')
-            if j.equipeIdB is not None and j.equipeIdB not in ids:
-                raise ValueError('Equipe B não existe na rodada')
         return self
 
 class ItemLixeira(Base):

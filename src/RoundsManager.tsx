@@ -1,3 +1,5 @@
+import { definirDisponibilidade } from './Disponibilidade';
+import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ChangeEvent } from 'react';
@@ -46,6 +48,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   const [dataDesejada, setDataDesejada] = useState(proximoSabado);
   const [rodadaSelecionada, setRodadaSelecionada] = useState(initialRoundId ?? '');
   const [nomeJogador, setNomeJogador] = useState('');
+  useTrabalhoPendente('novo-jogador',!!nomeJogador.trim(),'Nome de jogador ainda não cadastrado');
   const [marcarChegadaNoCadastro, setMarcarChegadaNoCadastro] = useState(false);
   const [avisoCadastro, setAvisoCadastro] = useState('');
   const [erroCadastro, setErroCadastro] = useState('');
@@ -54,6 +57,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   const [aviso, setAviso] = useState('');
   const [selecionando, setSelecionando] = useState(false);
   const [jogosSelecionados, setJogosSelecionados] = useState<string[]>([]);
+  const [avancado,setAvancado]=useState(false);
   const [jogoAberto, setJogoAberto] = useState<string | null>(initialGameId ?? null);
   const [atletaParaExcluir, setAtletaParaExcluir] = useState('');
   const [erro, setErro] = useState('');
@@ -264,7 +268,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   function adicionarAtleta(game: Partida, side: 'A' | 'B') {
     const chave = `${game.id}-${side}`;
     const id = novaEscalacao[chave];
-    if (game.vinculoFormacao) { setErro('Esse jogo segue os times fixos. Ajuste a formação do sábado, se ainda estiver liberada.'); return; }
+    if (game.vinculoFormacao) { setErro('Este jogo guarda a escalação confirmada ao criá-lo. Monte os times em Times para criar a próxima partida.'); return; }
     if ((side === 'A' ? game.atletasA : game.atletasB).length >= JOGADORES_POR_TIME) {
       setErro('Este time já tem 7 jogadores, incluindo o goleiro.'); return;
     }
@@ -275,7 +279,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
     setNovaEscalacao(prev => ({ ...prev, [chave]: '' }));
   }
   function removerAtleta(game: Partida, side: 'A' | 'B', id: string) {
-    if (game.vinculoFormacao) { setErro('Este jogo usa a formação fixa da rodada.'); return; }
+    if (game.vinculoFormacao) { setErro('Esta escalação pertence a este jogo. A montagem em Times vale para jogos novos.'); return; }
     modificarJogo(game.id, j => {
       const golsPorAtleta = { ...j.golsPorAtleta };
       delete golsPorAtleta[id];
@@ -377,7 +381,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       {([['presencas','1. Presentes'],['times','2. Times'],['partidas','3. Partidas']] as [Etapa,string][]).map(([id,titulo]) => <button type="button" key={id} aria-current={etapa===id?'step':undefined} onClick={() => irParaEtapa(id === 'partidas' ? 'confronto' : id)}>{titulo}</button>)}
     </nav>
     {rodada && <p className="ux-active-date"><CalendarDays size={18}/> {dataFormatada(rodada.data)} · {rodada.presencas.length} presentes · {progresso.timesCompletos} times confirmados completos</p>}
-    <div className="ssw-sabado-proximo" hidden={etapa==='times'} aria-label="Próximo passo do Sábado completo">
+    <div className="ssw-sabado-proximo" hidden={etapa==='times'} aria-label="Próximo passo de Organizar sábado">
       <div><small>PRÓXIMO PASSO</small><strong>{progresso.passo}</strong><span>{dados.jogadores.length} jogadores cadastrados · {progresso.presentes} presentes · {progresso.timesCompletos} times completos</span></div>
       <button type="button" onClick={() => irParaEtapa(progresso.destino)}>Continuar <ChevronRight size={20}/></button>
     </div>
@@ -389,7 +393,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       <div className="egc7-title"><div><span>SÁBADO EM CAMPO</span><h3 id="egc7-title">Jogos deste sábado</h3><p>{rodada.jogos.length} jogo(s) · {rodada.equipes.length} time(s) · {rodada.presencas.length} presente(s)</p></div><ClipboardList size={28} aria-hidden="true"/></div>
       <div className="egc7-create">
         <h4>Nova partida</h4>
-        {rodada.equipes.length < 2 ? <div className="egc7-empty"><p>Primeiro, monte pelo menos dois times para o sábado.</p><button type="button" onClick={() => document.getElementById('eg-team-board')?.scrollIntoView({behavior:'smooth',block:'start'})}>Ir para os times <ChevronRight size={19}/></button></div> : <>
+        {rodada.equipes.length < 2 ? <div className="egc7-empty"><p>Primeiro, monte pelo menos dois times para o sábado.</p><button type="button" onClick={() => irParaEtapa('times')}>Ir para os times <ChevronRight size={19}/></button></div> : <>
           <div className="egc7-team-fields">
             <label>Primeiro time<select value={equipeEscolhidaA?.id ?? ''} onChange={e => selecionarEquipe('a', e.target.value)}>{rodada.equipes.map(e => <option key={e.id} value={e.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>
             <span aria-hidden="true">×</span>
@@ -476,10 +480,11 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       </div>
     </div>
 
+    {etapa==='presencas' && rodada && rodada.presencas.length>0 && <details className="ux-maintenance"><summary>Quem saiu ou voltou? Disponibilidade para os próximos jogos</summary><div className="ux-access-list"><p>Marcar saída retira o jogador apenas da montagem futura. A presença do sábado e as partidas já criadas permanecem registradas. O retorno não o coloca automaticamente em um time.</p>{rodada.presencas.map(id=><label key={id}>{nomePorId.get(id)}<select aria-label={`Disponibilidade de ${nomePorId.get(id)}`} value={rodada.indisponiveis?.includes(id)?'saiu':'disponivel'} onChange={e=>{const livre=e.target.value==='disponivel';if(!livre&&!window.confirm(`Marcar saída de ${nomePorId.get(id)} e liberar sua vaga nos próximos jogos? As súmulas existentes ficam iguais.`))return;salvar(()=>atualizarDados(d=>definirDisponibilidade(d,rodada.id,id,livre),livre?'retorno de jogador':'saída de jogador'));}}><option value="disponivel">Disponível para jogar</option><option value="saiu">Saiu — presença preservada</option></select></label>)}</div></details>}
     {etapa==='presencas' && rodada && <div className="ux-stage-actions"><p>{rodada.presencas.length < 14 ? `Há ${rodada.presencas.length} presentes. Para uma partida, são necessários 14 jogadores.` : 'Presenças registradas. Agora distribua os jogadores nos times.'}</p><button type="button" disabled={!rodada.presencas.length} onClick={() => irParaEtapa('times')}>Continuar para os times <ChevronRight size={20}/></button></div>}
     {!rodada ? <div className="rounds-empty"><CalendarDays size={33}/><strong>Nenhum sábado registrado</strong><p>Crie a primeira rodada para organizar as súmulas.</p></div> : <>
       <div id="eg-team-board" key={rodada.id} hidden={etapa!=='times'}><TeamBoard rodada={rodada} jogadores={dados.jogadores} continuar={() => {setAviso('Times confirmados. Escolha o confronto para criar a partida.');irParaEtapa('confronto');}}/></div>
-      <div hidden={etapa!=='partidas'} className="ux-match-area"><div className="rounds-selected"><div><span>RODADA SELECIONADA</span><h3>{dataFormatada(rodada.data)}</h3><p>{rodada.jogos.length} partidas · {rodada.presencas.length} presentes · {rodada.equipes.length} times</p></div></div>
+      <details hidden={etapa!=='partidas'} className="ux-match-area ux-maintenance" open={avancado||!!jogoAberto||selecionando} onToggle={e=>{setAvancado(e.currentTarget.open);if(!e.currentTarget.open){setJogoAberto(null);setSelecionando(false);}}}><summary>Súmula completa e ferramentas avançadas</summary><div className="rounds-selected"><div><span>RODADA SELECIONADA</span><h3>{dataFormatada(rodada.data)}</h3><p>{rodada.jogos.length} partidas · {rodada.presencas.length} presentes · {rodada.equipes.length} times</p></div></div>
       <div id="eg-game-list" className="quick-matches-heading"><div><strong>Súmulas do sábado</strong><p>Duplique confrontos ou gerencie vários rascunhos em lote.</p></div>
         <button type="button" onClick={()=>{setSelecionando(v=>!v);setJogosSelecionados([]);}} aria-pressed={selecionando}><CheckSquare size={20}/> {selecionando?'Sair da seleção':'Selecionar súmulas'}</button>
       </div>
@@ -493,11 +498,11 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       <div className="match-cards">
         {!rodada.jogos.length && <div className="rounds-no-games"><ClipboardList size={24}/><span>Nenhuma súmula neste sábado. Use <strong>Criar partida</strong> nesta etapa.</span></div>}
         {rodada.jogos.map(game => <article id={`eg-game-${game.id}`} className={`match-editor ${jogoAberto === game.id ? 'match-editor--expanded' : 'match-editor--collapsed'}`} key={game.id}>
-          <div className="match-editor-header"><div className="quick-match-title">{selecionando && <label className="quick-match-check"><input type="checkbox" disabled={game.status === 'encerrada'} checked={jogosSelecionados.includes(game.id) && game.status === 'rascunho'} onChange={()=>alternarJogoSelecionado(game.id)} aria-label={`Selecionar rascunho do Jogo ${game.numero}`}/></label>}<span className="match-number">JOGO {String(game.numero).padStart(2, '0')}</span></div><div className="match-editor-labels">{game.vinculoFormacao && <span className="linked-badge"><Shield size={13}/> TIMES FIXOS</span>}<span className={`match-status match-status--${game.status}`}>{game.status === 'encerrada' ? 'ENCERRADO' : 'RASCUNHO'}</span></div><button type="button" className="mobile-match-toggle" onClick={()=>setJogoAberto(prev=>prev===game.id?null:game.id)} aria-expanded={jogoAberto===game.id} aria-controls={`match-details-${game.id}`}>
+          <div className="match-editor-header"><div className="quick-match-title">{selecionando && <label className="quick-match-check"><input type="checkbox" disabled={game.status === 'encerrada'} checked={jogosSelecionados.includes(game.id) && game.status === 'rascunho'} onChange={()=>alternarJogoSelecionado(game.id)} aria-label={`Selecionar rascunho do Jogo ${game.numero}`}/></label>}<span className="match-number">JOGO {String(game.numero).padStart(2, '0')}</span></div><div className="match-editor-labels">{game.vinculoFormacao && <span className="linked-badge"><Shield size={13}/> ESCALAÇÃO DO JOGO</span>}<span className={`match-status match-status--${game.status}`}>{game.status === 'encerrada' ? 'ENCERRADO' : 'RASCUNHO'}</span></div><button type="button" className="mobile-match-toggle" onClick={()=>setJogoAberto(prev=>prev===game.id?null:game.id)} aria-expanded={jogoAberto===game.id} aria-controls={`match-details-${game.id}`}>
             {jogoAberto===game.id?'Recolher súmula':'Abrir súmula'} <span>{game.golsA} × {game.golsB}</span>
           </button></div>
           <div className="match-editor-details" id={`match-details-${game.id}`}>
-          {!game.vinculoFormacao && rodada.equipes.length >= 2 && <div className="legacy-link-panel"><span>Esta súmula ainda não está vinculada às equipes fixas do sábado.</span>{game.status === 'rascunho' ? <button type="button" onClick={() => vincularJogo(game)}>Vincular times escolhidos acima</button> : <small>Para vincular sem alterar o placar, reabra o jogo e confirme a associação.</small>}</div>}
+          {!game.vinculoFormacao && rodada.equipes.length >= 2 && <div className="legacy-link-panel"><span>Esta súmula possui uma escalação própria. Vincular copiará os times atuais apenas para este jogo, antes dos gols.</span>{game.status === 'rascunho' ? <button type="button" onClick={() => vincularJogo(game)}>Vincular times escolhidos acima</button> : <small>A escalação histórica permanece preservada; crie outra partida para usar a montagem atual.</small>}</div>}
           <div className="match-editor-score">
             <label>Equipe A<input value={game.timeA} maxLength={40} disabled={game.status === 'encerrada' || game.vinculoFormacao} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, timeA: e.target.value }))}/></label>
             <input type="number" min={0} max={99} inputMode="numeric" aria-label={`Placar equipe A do jogo ${game.numero}`} disabled={game.status === 'encerrada'} value={game.golsA} onChange={(e: ChangeEvent<HTMLInputElement>) => modificarJogo(game.id, j => ({ ...j, golsA: Math.min(99, Math.max(0, Number(e.target.value) || 0)) }))}/>
@@ -519,7 +524,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
         </article>)}
       </div>
       <div className="media-next"><div className="media-icons"><ImageIcon size={23}/><Film size={23}/></div><div><strong>Fotos e vídeos já disponíveis</strong><p>Use a área Mídia para vincular arquivos às rodadas e aos jogos.</p></div></div>
-      </div>
+      </details>
     </>}
     <p className="rounds-disclaimer"><LockKeyhole size={14}/> Confira Salvo no servidor antes de sair. Em Importar e arquivos → Guia e backup, baixe uma cópia completa do grupo.</p>
   </section>;

@@ -2,13 +2,14 @@ import argparse, getpass, json, os
 from pathlib import Path
 from datetime import datetime, timezone
 from sqlalchemy import select, func
-from .db import session_factory, User, State
+from .db import UserRole, session_factory, User, State
 from .security import hash_password
 
 def main():
     parser = argparse.ArgumentParser(description='Administração local do EGIDIUS')
-    parser.add_argument('command', choices=['create-admin', 'has-admin', 'backup'])
+    parser.add_argument('command', choices=['create-admin', 'create-user', 'has-admin', 'backup'])
     parser.add_argument('--username', default='admin')
+    parser.add_argument('--role',choices=['viewer','operator','admin'],default='viewer')
     args = parser.parse_args()
     SessionLocal, engine = session_factory()
     try:
@@ -27,8 +28,8 @@ def main():
             if args.command == 'has-admin':
                 print('Administrador configurado.' if count else 'Ainda não existe administrador.')
                 return 0 if count else 1
-            if count:
-                print('Administrador já configurado. Nenhuma credencial foi alterada.')
+            if db.get(User,args.username) or (count and args.command=='create-admin'):
+                print('Conta já configurada ou administrador já existente. Nenhuma credencial foi alterada.')
                 return 1
             if not args.username.isascii() or len(args.username)<3 or len(args.username)>50:
                 parser.error('Nome de usuário deve ter de 3 a 50 caracteres ASCII.')
@@ -38,8 +39,10 @@ def main():
                 print('Senhas diferentes ou muito curtas. Nenhuma conta criada.')
                 return 1
             db.add(User(username=args.username, password_hash=hash_password(a)))
+            db.flush()
+            db.add(UserRole(username=args.username,role='admin' if args.command=='create-admin' else args.role))
             db.commit()
-            print(f'Administrador {args.username} criado. Guarde a senha em local seguro.')
+            print(f'Conta {args.username} criada. Guarde a senha em local seguro.')
             return 0
     finally:
         engine.dispose()

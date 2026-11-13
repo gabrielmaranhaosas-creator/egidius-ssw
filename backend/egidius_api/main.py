@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session as DbSession
-from .db import session_factory, User, Session, State, History, AthleteProfile, utcnow
+from .db import session_factory, User, Session, State, History, AthleteProfile, UserRole, OperationAudit, InviteAccess, utcnow
 from .security import token_hash, expires_at, verify_password, hash_password
 from .schema import Atualizacao, DadosSSW
 from .profiles import AtualizacaoPerfil, PerfilEntrada, perfil_serializado
@@ -22,7 +22,7 @@ MAX_BODY = 5 * 1024 * 1024
 
 def create_app(database_url: str | None = None) -> FastAPI:
     db_factory, engine = session_factory(database_url)
-    app = FastAPI(title='EGIDIUS API', version='0.8.3', docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title='EGIDIUS API', version='0.9.0', docs_url=None, redoc_url=None, openapi_url=None)
     app.state.engine = engine
     app.state.db_factory = db_factory
 
@@ -75,18 +75,95 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(intake_router(session_auth, check_csrf, get_db))
     app.include_router(exports_router(session_auth, get_db))
 
+    from .permissions import role_for, require_admin, ROLES
+
+    @app.middleware('http')
+    async def permissions(request, call_next):
+        path = request.url.path
+        protected = path.startswith('/api/') and not path.startswith('/api/auth/') and path != '/api/health'
+        actor = None
+        if protected:
+            try:
+                with db_factory() as db:
+                    sess = session_auth(request, db)
+                    actor = sess.username
+                    role = role_for(db, actor)
+                    if request.method not in ('GET','HEAD','OPTIONS') and role == 'viewer':
+                        raise HTTPException(403, 'Seu acesso é de consulta. Peça a um organizador para registrar alterações.')
+                    if path.startswith('/api/admin') or path.startswith('/api/backup') or '/purge' in path:
+                        require_admin(db, actor)
+            except HTTPException as exc:
+                return JSONResponse({'detail': exc.detail},status_code=exc.status_code)
+        response = await call_next(request)
+        if actor and request.method in ('POST','PUT','PATCH','DELETE') and 200 <= response.status_code < 300:
+            try:
+                with db_factory.begin() as db:
+                    db.add(OperationAudit(actor=actor,action=f'{request.method} {path}'[:250]))
+            except Exception:
+                import logging
+                logging.getLogger('egidius').error('Falha ao registrar auditoria de operação concluída.')
+        return response
+
+    @app.get('/api/admin/access')
+    def access_list(sess=Depends(session_auth), db:DbSession=Depends(get_db)):
+        require_admin(db,sess.username)
+        return {'users':[{'username':u.username,'role':role_for(db,u.username)} for u in db.scalars(select(User)).all()],
+                'audit':[{'actor':a.actor,'action':a.action,'created_at':a.created_at.isoformat()} for a in db.scalars(select(OperationAudit).order_by(OperationAudit.id.desc()).limit(100)).all()]}
+
+    @app.put('/api/admin/access/{username}')
+    async def access_update(username:str,request:Request,sess=Depends(check_csrf),db:DbSession=Depends(get_db)):
+        list(db.scalars(select(User).order_by(User.username).with_for_update()).all())
+        require_admin(db,sess.username)
+        value=await json_bounded(request)
+        if not isinstance(value,dict) or set(value)!={'role'} or value['role'] not in ROLES:
+            raise HTTPException(422,'Escolha consulta, operação ou administração.')
+        if not db.get(User,username):raise HTTPException(404,'Conta não encontrada.')
+        if username=='confrade_ssw' and value['role']=='admin':raise HTTPException(409,'O convite coletivo não pode receber administração. Use uma conta individual.')
+        if username==sess.username or username=='operador_local':raise HTTPException(409,'Não altere seu próprio acesso ou o acesso local de recuperação.')
+        row=db.get(UserRole,username)
+        if row:row.role=value['role']
+        else:db.add(UserRole(username=username,role=value['role']))
+        db.commit()
+        return {'username':username,'role':value['role']}
+
+    @app.post('/api/admin/invites')
+    async def invite_create(request:Request,sess=Depends(check_csrf),db:DbSession=Depends(get_db)):
+        require_admin(db,sess.username)
+        value=await json_bounded(request)
+        import re
+        if not isinstance(value,dict) or not isinstance(value.get('username'),str) or not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{2,49}',value['username']) or value.get('role') not in ('viewer','operator'):
+            raise HTTPException(422,'Use identificação de 3 a 50 letras sem acentos, números, ponto, hífen ou sublinhado; escolha consulta ou operação.')
+        username=value['username']
+        if db.get(User,username):raise HTTPException(409,'Identificação já usada. Crie outra; os acessos existentes não foram alterados.')
+        raw=secrets.token_urlsafe(40)
+        db.add(User(username=username,password_hash=hash_password(secrets.token_urlsafe(36))));db.flush()
+        db.add(UserRole(username=username,role=value['role']))
+        db.add(InviteAccess(token_hash=token_hash(raw),username=username,expires_at=utcnow()+timedelta(days=7)))
+        db.commit()
+        return JSONResponse({'token':raw,'username':username,'expires_in_days':7},headers={'Cache-Control':'no-store'})
+
+    @app.post('/api/admin/invites/{username}/revoke')
+    def revoke_invite(username:str,sess=Depends(check_csrf),db:DbSession=Depends(get_db)):
+        require_admin(db,sess.username)
+        entries=db.scalars(select(InviteAccess).where(InviteAccess.username==username)).all()
+        if not entries:raise HTTPException(404,'Nenhum convite individual encontrado para esta conta.')
+        for entry in entries:entry.revoked=1
+        from sqlalchemy import delete
+        db.execute(delete(Session).where(Session.username==username));db.commit()
+        return {'ok':True}
+
     def serialize_profile(row, db: DbSession):
         return {**perfil_serializado(row), **newest_portraits(db, row.athlete_id)}
 
     @app.get('/api/health')
-    def health(): return {'status': 'ok', 'service': 'egidius', 'version': '0.8.3'}
+    def health(): return {'status': 'ok', 'service': 'egidius', 'version': '0.9.0'}
 
     @app.get('/api/auth/status')
     def status(request: Request, db: DbSession = Depends(get_db)):
         users = db.query(User).count()
         try:
             session = session_auth(request, db)
-            return {'authenticated': True, 'username': session.username, 'csrf': session.csrf_token, 'setup_required': False}
+            return {'authenticated': True, 'role': role_for(db,session.username), 'username': session.username, 'csrf': session.csrf_token, 'setup_required': False}
         except HTTPException:
             return {'authenticated': False, 'setup_required': users == 0}
 
@@ -94,8 +171,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     async def invite_entry(request: Request, response: Response, db: DbSession = Depends(get_db)):
         """Entrada sem senha por convite compartilhado; exigida configuração explícita."""
         expected = os.getenv('EGIDIUS_PUBLIC_INVITE_TOKEN', '')
-        if len(expected) < 40:
-            raise HTTPException(404, 'Convites não estão habilitados.')
+        # Convites individuais também funcionam sem convite coletivo configurado.
         # Não aceite aplicações de terceiros enviando pedidos cross-site.
         origin = request.headers.get('origin')
         host = request.headers.get('host', '')
@@ -108,9 +184,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 raise HTTPException(403, 'Acesso HTTPS obrigatório.')
         data = await json_bounded(request)
         token = data.get('token') if isinstance(data,dict) else None
-        if not isinstance(token,str) or len(token) > 300 or not hmac.compare_digest(token, expected):
-            raise HTTPException(403, 'Convite inválido.')
-        username = 'confrade_ssw'
+        if not isinstance(token,str) or len(token)>300 or len(token)<40:raise HTTPException(403,'Convite inválido.')
+        individual=db.get(InviteAccess,token_hash(token))
+        if individual and not individual.revoked and individual.expires_at.replace(tzinfo=timezone.utc)>utcnow():
+            username=individual.username
+        elif len(expected)>=40 and hmac.compare_digest(token,expected):
+            username='confrade_ssw'
+        else:raise HTTPException(403,'Convite inválido, expirado ou revogado. Solicite outro ao organizador.')
         user = db.get(User,username)
         if user is None:
             # Senha aleatória inacessível; a conta só recebe acesso pelo convite.
@@ -125,7 +205,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         secure = os.getenv('EGIDIUS_SECURE_COOKIES','false').lower() == 'true'
         response.set_cookie(COOKIE_NAME,raw,max_age=duration,httponly=True,secure=secure,samesite='lax',path='/api')
         response.headers['Cache-Control']='no-store'
-        return {'authenticated':True,'username':username,'csrf':csrf}
+        return {'authenticated':True,'role':role_for(db,username),'username':username,'csrf':csrf}
 
     @app.post('/api/auth/local')
     def local_entry(request: Request, response: Response, db: DbSession = Depends(get_db)):
@@ -172,7 +252,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             response.set_cookie(COOKIE_NAME, raw, max_age=12*3600, httponly=True,
                                 secure=False, samesite='strict', path='/api')
         response.headers['Cache-Control'] = 'no-store'
-        return {'authenticated': True, 'username': sess.username, 'csrf': sess.csrf_token}
+        return {'authenticated': True, 'role':role_for(db,sess.username), 'username': sess.username, 'csrf': sess.csrf_token}
 
     @app.post('/api/auth/login')
     async def login(request: Request, response: Response, db: DbSession = Depends(get_db)):
@@ -192,7 +272,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         secure = os.getenv('EGIDIUS_SECURE_COOKIES', 'false').lower() == 'true'
         response.set_cookie(COOKIE_NAME, raw_token, max_age=12*3600, httponly=True, secure=secure, samesite='lax', path='/api')
         response.headers['Cache-Control'] = 'no-store'
-        return {'authenticated': True, 'username': user.username, 'csrf': csrf}
+        return {'authenticated': True, 'role':role_for(db,user.username), 'username': user.username, 'csrf': csrf}
 
     @app.post('/api/auth/logout')
     def logout(response: Response, sess: Session = Depends(check_csrf), db: DbSession = Depends(get_db)):
@@ -210,6 +290,22 @@ def create_app(database_url: str | None = None) -> FastAPI:
         content = await json_bounded(request)
         try: incoming = Atualizacao.model_validate(content)
         except ValidationError as exc: raise HTTPException(422, 'Estrutura de dados inválida. Corrija o cadastro e tente novamente.') from exc
+        current=db.get(State,1)
+        if current.revision != incoming.expected_revision:raise HTTPException(409,'Outra sessão já alterou os dados. O envio foi bloqueado.')
+        old=json.loads(current.payload);new=incoming.data.model_dump()
+        if role_for(db,sess.username)!='admin':
+            if any({x['id'] for x in old.get(key,[])}-{x['id'] for x in new.get(key,[])} for key in ('jogadores','rodadas')):
+                raise HTTPException(403,'Excluir jogadores ou sábados exige administração. Os registros foram preservados.')
+        by_id={g['id']:g for r in new['rodadas'] for g in r['jogos']}
+        for r in old['rodadas']:
+            for game in r['jogos']:
+                if game['status']=='encerrada':
+                    candidate=by_id.get(game['id'])
+                    if not candidate:raise HTTPException(422,'Reabra a partida antes de removê-la. O histórico foi preservado.')
+                    if candidate['status']=='rascunho':
+                        reopened={**candidate,'status':'encerrada'}
+                        if reopened!=game:raise HTTPException(422,'Reabra a partida primeiro, mantendo os registros; depois aplique a correção.')
+                    elif candidate!=game:raise HTTPException(422,'Partida encerrada: reabra antes de corrigir.')
         normalized = incoming.data.model_dump_json()
         # Atomic compare-and-swap evita que uma aba sobrescreva a gravação de outra.
         result = db.execute(update(State).where(State.id == 1, State.revision == incoming.expected_revision)
