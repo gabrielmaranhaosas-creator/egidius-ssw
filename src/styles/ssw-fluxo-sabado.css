@@ -55,3 +55,8 @@
  .sync-banner:has(button) button{min-width:44px;min-height:44px}
 }
 @media(max-height:500px){.ux-organizar .team-board-footer{position:static}}
+
+.ux-manual-open{width:100%;min-height:48px;margin-top:12px;padding:12px;border:0;border-radius:10px;background:#793f26;color:white;font:inherit;font-weight:750;cursor:pointer;white-space:normal}
+.ux-manual-picker{margin-top:12px;padding:12px;border:1px solid #c9ad87;border-radius:10px;background:#fffaf0;color:#573720}
+.ux-manual-picker p{line-height:1.6}.ux-manual-picker>label{display:grid;gap:8px}.ux-manual-picker input[type=search]{width:100%;min-height:44px;padding:10px;border:1px solid #c9ad87;border-radius:8px;font:inherit;box-sizing:border-box}
+.ux-manual-picker>div{max-height:360px;overflow-y:auto;margin:12px 0}.ux-manual-picker>div>label{display:flex;align-items:center;gap:12px;min-height:48px;padding:8px;border-bottom:1px solid #e6d4bd;cursor:pointer}.ux-manual-picker input[type=checkbox]{width:22px;height:22px;flex-shrink:0;accent-color:#793f26}.ux-manual-picker small{display:block;margin-top:3px}.ux-manual-picker label:has(input:disabled){opacity:.65}.ux-manual-picker input:focus-visible,.ux-manual-open:focus-visible{outline:3px solid #d97a22;outline-offset:3px}
