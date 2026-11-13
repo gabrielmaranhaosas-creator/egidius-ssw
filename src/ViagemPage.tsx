@@ -1,3 +1,4 @@
+import { useTrabalhoPendente, podeAbandonarEdicao } from './TrabalhoPendente';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, CalendarDays, CheckCircle2, MapPin, Plus, RefreshCcw,
@@ -65,7 +66,9 @@ export function ViagemPage() {
   const [swapOut, setSwapOut] = useState('');
   const [swapIn, setSwapIn] = useState('');
 
+  useTrabalhoPendente('viagem',busy||(editDetails&&!!doc&&JSON.stringify(form)!==JSON.stringify(details(doc.data)))||!!guestName,'Viagem com edição pendente',busy);
   async function refresh() {
+    if(!podeAbandonarEdicao())return;
     setError(''); setMessage('');
     setLoading(true);
     try {

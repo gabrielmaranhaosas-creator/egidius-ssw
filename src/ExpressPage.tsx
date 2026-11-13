@@ -116,7 +116,7 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
     acao(() => {
       atualizarDados(d => excluirRascunhosParaLixeira(d, rodada.id, [partida.id]), `envio do jogo ${partida.numero} à lixeira`);
       setJogoId('');
-      setMensagem(`Jogo ${partida.numero} enviado à Lixeira. Restaure em Mais → Sábado completo → Lixeira de jogos.`);
+      setMensagem(`Jogo ${partida.numero} enviado à Lixeira. Restaure em Organizar sábado → Partidas → Ferramentas → Lixeira de jogos.`);
     });
   }
   function reabrirJogo(partida: Partida) {
@@ -212,7 +212,7 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
       {partidaAExcluir && <SSWConfirmDialog
         titulo={`Excluir jogo ${partidaAExcluir.numero}?`}
         descricao={<><p><strong>{partidaAExcluir.timeA} {partidaAExcluir.golsA} × {partidaAExcluir.golsB} {partidaAExcluir.timeB}</strong></p>
-          <p>Este rascunho ficará na <strong>Lixeira de jogos</strong>, em Sábado completo, e poderá ser recuperado mesmo após fechar a aba.</p></>}
+          <p>Este rascunho ficará na <strong>Lixeira de jogos</strong>, em Organizar sábado, e poderá ser recuperado mesmo após fechar a aba.</p></>}
         acao="Excluir jogo"
         destrutiva
         cancelar={() => setExcluirConfirmacaoId(null)}

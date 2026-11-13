@@ -16,6 +16,7 @@ export function jogoDasEquipes(numero: number, id: string, equipeA: EquipeRodada
 
 /** Vinculação expressa: preserva placar e observações; nunca altera súmula encerrada. */
 export function aplicarEquipes(jogo: Partida, equipeA: EquipeRodada, equipeB: EquipeRodada): Partida {
+  if (jogo.golsA || jogo.golsB || Object.values(jogo.golsPorAtleta).some(Boolean)) throw new Error('Este jogo já tem gols. Corrija os registros da própria súmula; a montagem atual vale para novos jogos.');
   if (jogo.status !== 'rascunho') throw new Error('Reabra a súmula antes de escolher as equipes deste jogo.');
   if (equipeA.id === equipeB.id) throw new Error('Selecione duas equipes diferentes.');
   const golsPorAtleta = Object.fromEntries(Object.entries(jogo.golsPorAtleta).filter(([id]) =>
@@ -31,11 +32,8 @@ export function aplicarEquipes(jogo: Partida, equipeA: EquipeRodada, equipeB: Eq
   };
 }
 
-/** Trava as mudanças quando já existe partida vinculada com resultado. */
-export function equipesBloqueadas(rodada: Rodada): boolean {
-  return rodada.jogos.some(j => j.vinculoFormacao && (j.status === 'encerrada' ||
-    j.golsA > 0 || j.golsB > 0 || Object.values(j.golsPorAtleta).some(g => g > 0)));
-}
+/** A montagem atual prepara jogos futuros; cada súmula guarda sua própria escalação. */
+export function equipesBloqueadas(_rodada: Rodada): boolean { return false; }
 
 export function validarEquipes(equipes: EquipeRodada[], presencas: string[]): string | null {
   if (equipes.length < 2) return 'Cadastre pelo menos dois times para o sábado.';
@@ -52,20 +50,9 @@ export function validarEquipes(equipes: EquipeRodada[], presencas: string[]): st
   return null;
 }
 
-/** Atualiza SOMENTE súmulas vinculadas em rascunho e sem resultado, respeitando os IDs das equipes. */
+/** Salvar novos times jamais reescreve súmulas, inclusive rascunhos já criados. */
 export function atualizarRascunhosVinculados(rodada: Rodada, equipes: EquipeRodada[]): Rodada {
-  if (equipesBloqueadas(rodada)) throw new Error('Já existe jogo vinculado encerrado ou com placar. Os times estão protegidos.');
-  const mapa = new Map(equipes.map(e => [e.id, e]));
-  return {
-    ...rodada, equipes,
-    jogos: rodada.jogos.map(j => {
-      if (!j.vinculoFormacao || j.status !== 'rascunho' || !j.equipeIdA || !j.equipeIdB) return j;
-      const a = mapa.get(j.equipeIdA), b = mapa.get(j.equipeIdB);
-      // Se uma equipe foi removida, a súmula vira legado explícito: sem alterações implícitas no placar.
-      if (!a || !b) return { ...j, vinculoFormacao: false, equipeIdA: null, equipeIdB: null };
-      return aplicarEquipes(j, a, b);
-    }),
-  };
+  return { ...rodada, equipes, jogos: rodada.jogos };
 }
 
 /** Confronto padrão: repete o último duelo do sábado, se os dois times ainda existem. */

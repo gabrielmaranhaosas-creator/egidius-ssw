@@ -12,7 +12,7 @@ export function validarCapacidadeDosTimes(equipes: EquipeRodada[]): string | nul
 export function validarDoisTimes(a?: EquipeRodada, b?: EquipeRodada): string | null {
   if (!a || !b || a.id === b.id) return 'Escolha dois times diferentes.';
   if (a.atletas.length !== JOGADORES_POR_TIME || b.atletas.length !== JOGADORES_POR_TIME) {
-    return `Para criar o jogo, cada time precisa ter 7 jogadores (6 de linha + 1 goleiro). ${a.nome}: ${a.atletas.length}/7; ${b.nome}: ${b.atletas.length}/7. Complete os times em Sábado completo → Times.`;
+    return `Para criar o jogo, cada time precisa ter 7 jogadores (6 de linha + 1 goleiro). ${a.nome}: ${a.atletas.length}/7; ${b.nome}: ${b.atletas.length}/7. Complete os times em Organizar sábado → Times.`;
   }
   const todos = [...a.atletas, ...b.atletas];
   if (new Set(todos).size !== 14) return 'Um jogador não pode ocupar duas vagas no mesmo confronto.';

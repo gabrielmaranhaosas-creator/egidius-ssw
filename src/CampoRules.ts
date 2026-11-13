@@ -18,7 +18,7 @@ export function statusRodada(rodada: Rodada | undefined, jogadores?: Jogador[]) 
   const rascunhos = jogos - encerrados;
   const prontos = (rodada?.equipes ?? []).filter(e =>
     e.atletas.length === JOGADORES_POR_TIME && new Set(e.atletas).size === JOGADORES_POR_TIME &&
-    e.atletas.every(id => rodada?.presencas.includes(id) && (!jogadores || jogadores.some(j => j.id === id))));
+    e.atletas.every(id => rodada?.presencas.includes(id) && !rodada.indisponiveis?.includes(id) && (!jogadores || jogadores.some(j => j.id === id))));
   const timesCompletos = prontos.length;
   const confrontoPronto = prontos.some((a, i) => prontos.slice(i + 1).some(b => !validarDoisTimes(a, b)));
   let passo: string;
@@ -35,7 +35,7 @@ export function statusRodada(rodada: Rodada | undefined, jogadores?: Jogador[]) 
 /** Lista a formação na ordem das chegadas, independentemente da ordem do cadastro. */
 export function jogadoresPorChegada(rodada: Rodada, jogadores: Jogador[]): Jogador[] {
   const cadastro = new Map(jogadores.map(j => [j.id, j]));
-  return [...new Set(rodada.presencas)].map(id => cadastro.get(id)).filter((j): j is Jogador => j !== undefined);
+  return [...new Set(rodada.presencas)].filter(id=>!rodada.indisponiveis?.includes(id)).map(id => cadastro.get(id)).filter((j): j is Jogador => j !== undefined);
 }
 
 /** Check-in exclusivamente aditivo, preservando a ordem cronológica das chegadas. */
@@ -65,5 +65,5 @@ export function retirarChegada(dados: DadosSSW, rodadaId: string, jogadorId: str
     throw new Error('Este jogador já participa de um time ou jogo. Ajuste a escalação antes de retirar a presença.');
   }
   return { ...dados, rodadas: dados.rodadas.map(r => r.id === rodadaId
-    ? { ...r, presencas: r.presencas.filter(id => id !== jogadorId) } : r) };
+    ? { ...r, presencas: r.presencas.filter(id => id !== jogadorId),indisponiveis:r.indisponiveis?.filter(id=>id!==jogadorId) } : r) };
 }

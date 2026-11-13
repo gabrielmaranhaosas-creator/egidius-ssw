@@ -77,7 +77,7 @@ export function salvarMontagem(dados: DadosSSW, rodadaId: string, origem: string
   }
   if (equipes.length > 16) throw new Error('O limite é de 16 times por sábado.');
   const limpas = equipes.map(e => ({ ...e, nome: e.nome.trim(), atletas: [...e.atletas] }));
-  const problema = validarEquipes(limpas, rodada.presencas);
+  const problema = validarEquipes(limpas, rodada.presencas.filter(id=>!rodada.indisponiveis?.includes(id)));
   if (problema) throw new Error(problema);
   const cadastro = new Set(dados.jogadores.map(j => j.id));
   if (limpas.some(e => e.atletas.some(id => !cadastro.has(id)))) {

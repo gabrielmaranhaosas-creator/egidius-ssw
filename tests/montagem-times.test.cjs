@@ -88,19 +88,21 @@ test('presença ou cadastro removidos durante a montagem bloqueiam a gravação'
   assert.throws(()=>salvarMontagem({...d,jogadores:d.jogadores.slice(1)},d.rodadas[0].id,origem,times),/cadastro/);
   assert.throws(()=>salvarMontagem(d,'removida',origem,times),/sábado não existe/);
 });
-test('resultado novo protege a formação mesmo quando os nomes não mudaram',()=>{
+test('resultado novo preserva sua súmula e permite uma montagem futura',()=>{
   const d=dados();const jogo={...jogoDasEquipes(1,'teste-jogo',...times),golsA:1};
   const atualizado={...d,rodadas:[{...d.rodadas[0],jogos:[jogo]},d.rodadas[1]]};
-  assert.throws(()=>salvarMontagem(atualizado,d.rodadas[0].id,assinaturaEquipes(times),times),/protegidos/);
+  const alterados=times.map((e,i)=>i?e:{...e,nome:'Próximo jogo'});
+  const novo=salvarMontagem(atualizado,d.rodadas[0].id,assinaturaEquipes(times),alterados);
+  assert.strictEqual(novo.rodadas[0].jogos[0],jogo);assert.equal(novo.rodadas[0].equipes[0].nome,'Próximo jogo');
 });
-test('salvar atualiza o rascunho vinculado, preservando outro sábado e súmula histórica',()=>{
+test('salvar mantém também a escalação do rascunho já criado e outro sábado',()=>{
   const d=dados();const jogo=jogoDasEquipes(1,'rascunho',...times);
   const antigo={...jogo,id:'historico',status:'encerrada',vinculoFormacao:false,equipeIdA:null,equipeIdB:null,golsA:4};
   d.rodadas[0].jogos=[jogo,antigo];
   const novos=times.map((e,i)=>i?e:{...e,nome:' Novo nome '});
   const result=salvarMontagem(d,d.rodadas[0].id,assinaturaEquipes(times),novos);
   assert.equal(result.rodadas[0].equipes[0].nome,'Novo nome');
-  assert.equal(result.rodadas[0].jogos[0].timeA,'Novo nome');
+  assert.strictEqual(result.rodadas[0].jogos[0],jogo);
   assert.strictEqual(result.rodadas[0].jogos[1],antigo);assert.strictEqual(result.rodadas[1],d.rodadas[1]);
   assert.equal(d.rodadas[0].equipes[0].nome,times[0].nome);
 });

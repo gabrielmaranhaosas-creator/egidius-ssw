@@ -1,3 +1,4 @@
+import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useMemo, useState } from 'react';
 import { Download, FileUp, UsersRound } from 'lucide-react';
 import { apiError, getCsrf } from './mediaClient';
@@ -17,6 +18,7 @@ export function ElencoImport(){
   const [done,setDone]=useState(false);
   const [error,setError]=useState('');
   const [message,setMessage]=useState('');
+  useTrabalhoPendente('importar-elenco',busy||(!done&&(!!file||!!text.trim()||!!preview)),'Importação de elenco ainda não concluída',busy);
   const chosen=useMemo(()=>preview?.rows.filter(r=>enabled[r.row] && r.status!=='existente' && r.status!=='repetido')||[],[preview,enabled]);
   function reset(){setPreview(null);setConfirm(false);setDone(false);setError('');setMessage('');}
   async function load(nextColumn?:string){

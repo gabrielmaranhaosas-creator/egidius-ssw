@@ -1,3 +1,4 @@
+import { podeAbandonarEdicao,useTrabalhoPendente } from './TrabalhoPendente';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { AlertTriangle, CheckCheck, FileSpreadsheet, FileUp, RefreshCw, ShieldCheck, UsersRound, XCircle } from 'lucide-react';
@@ -48,6 +49,7 @@ function ProfileImportPage(){
     }catch(err){setError((err as Error).message);}finally{setBusy(false);}
   }
 
+  useTrabalhoPendente('importar-fichas',busy||(!!preview&&!complete),'Importação de fichas ainda não concluída',busy);
   const chosen=useMemo(()=>preview?.rows.filter(r=>enabled[r.row_number] && !!selected[r.row_number] && r.status!=='erro')||[],[preview,enabled,selected]);
   const dupe=useMemo(()=>{const ids=chosen.map(r=>selected[r.row_number]);return ids.length!==new Set(ids).size;},[chosen,selected]);
   const hasInvalid=chosen.some(r=>!preview?.athletes[selected[r.row_number]]);
@@ -110,7 +112,7 @@ export function ImportPage(){
   const tabs=[['elenco','Importar elenco'],['profiles','Atualizar fichas'],['photos','Fotos e caricaturas'],['documents','Documentos PDF'],['guide','Guia e backup']] as const;
   return <div className="import-mode-container">
     <div className="import-mode-tabs" role="group" aria-label="Tipo de importação">
-      {tabs.map(([id,label])=><button type="button" key={id} className={tab===id?'import-mode-active':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}
+      {tabs.map(([id,label])=><button type="button" key={id} className={tab===id?'import-mode-active':''} aria-pressed={tab===id} onClick={()=>{if(id!==tab&&podeAbandonarEdicao())setTab(id);}}>{label}</button>)}
     </div>
     {tab==='elenco'?<ElencoImport/>:tab==='profiles'?<ProfileImportPage/>:tab==='photos'?<BulkMediaImport/>:tab==='documents'?<MediaPage documentsOnly/>:<GestaoSSW/>}
   </div>;

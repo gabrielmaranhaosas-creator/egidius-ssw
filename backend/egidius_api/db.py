@@ -72,6 +72,31 @@ class PendingMediaDeletion(Base):
     stored_name: Mapped[str] = mapped_column(String(120), primary_key=True)
     size: Mapped[int] = mapped_column(Integer, nullable=False)
 
+class UserRole(Base):
+    __tablename__ = 'user_roles'
+    username: Mapped[str] = mapped_column(ForeignKey('users.username'), primary_key=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+
+class MediaTrash(Base):
+    __tablename__ = 'media_trash'
+    media_id: Mapped[str] = mapped_column(ForeignKey('media_assets.id'), primary_key=True)
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class InviteAccess(Base):
+    __tablename__ = 'invite_access'
+    token_hash: Mapped[str] = mapped_column(String(64),primary_key=True)
+    username: Mapped[str] = mapped_column(ForeignKey('users.username'),nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),nullable=False)
+    revoked: Mapped[int] = mapped_column(Integer,nullable=False,default=0)
+
+class OperationAudit(Base):
+    __tablename__ = 'operation_audit'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    action: Mapped[str] = mapped_column(String(250), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
 def engine_for_url(db_url):
     if db_url.startswith(('postgres://', 'postgresql://')):
         db_url = 'postgresql+psycopg://' + db_url.split('://', 1)[1]
@@ -92,12 +117,19 @@ def session_factory(url: str | None = None):
             dbfile.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             if dbfile.exists(): os.chmod(dbfile, 0o600)
     engine = engine_for_url(db_url)
+    from sqlalchemy import inspect
+    migrate_roles = 'user_roles' not in inspect(engine).get_table_names()
     Base.metadata.create_all(engine)
     if db_url.startswith('sqlite:') and ':memory:' not in db_url:
         address = db_url.partition('sqlite:///')[2]
         if address and Path(address).exists(): os.chmod(address, 0o600)
     SessionLocal = sessionmaker(engine, expire_on_commit=False)
     with SessionLocal.begin() as db:
+        # Contas individuais anteriores foram criadas como administradores pelo CLI.
+        # Preserva esse acesso na migração; o convite coletivo permanece operador.
+        for existing in (db.query(User).all() if migrate_roles else []):
+            if existing.username not in ('confrade_ssw', 'operador_local') and db.get(UserRole, existing.username) is None:
+                db.add(UserRole(username=existing.username, role='admin'))
         if db.get(State, 1) is None:
             db.add(State(id=1, revision=0, payload='{"versao":5,"jogadores":[],"rodadas":[]}'))
     return SessionLocal, engine
