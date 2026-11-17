@@ -1,8 +1,9 @@
+import { historicoMontagemVazio, registrarMontagem, moverHistoricoMontagem } from './HistoricoMontagem';
 import { usePapel } from './Permissoes';
 import { normalizarBusca } from './Busca';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Check, LockKeyhole, Plus, Save, ShieldCheck, Trash2, UsersRound, RotateCcw, Shuffle, X, Search, ChevronDown } from 'lucide-react';
+import { Check, LockKeyhole, Plus, Save, ShieldCheck, Trash2, UsersRound, RotateCcw, RotateCw, Shuffle, X, Search, ChevronDown } from 'lucide-react';
 import type { EquipeRodada, Jogador, Rodada } from './SSWStore';
 import { atualizarDados, novoId } from './SSWStore';
 import { equipesBloqueadas } from './RoundRules';
@@ -27,7 +28,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   const [aviso, setAviso] = useState('');
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todos');
-  const [formacaoAnterior, setFormacaoAnterior] = useState<EquipeRodada[] | null>(null);
+  const [historico, setHistorico] = useState(historicoMontagemVazio);
   const equipes = rascunho.equipes;
   const assinaturaAtual = assinaturaEquipes(rodada.equipes);
   const alterado = assinaturaEquipes(equipes) !== rascunho.origem;
@@ -47,26 +48,26 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
 
   useEffect(() => {
     if (rascunho.origem !== assinaturaAtual && !ajustesLocais) {
-      setFormacaoAnterior(null); setErro(''); setAviso('');
+      setHistorico(historicoMontagemVazio()); setErro(''); setAviso('');
     }
     setRascunho(atual => reconciliarRascunhoTimes(atual, rodada.equipes, novoId));
   }, [assinaturaAtual, rodada.equipes, rascunho.origem, ajustesLocais]);
 
-  function alterarEquipes(proxima: EquipeRodada[] | ((anteriores: EquipeRodada[]) => EquipeRodada[])) {
-    setRascunho(atual => ({ ...atual, editado: true,
-      equipes: typeof proxima === 'function' ? proxima(atual.equipes) : proxima }));
+  function alterarEquipes(proxima: EquipeRodada[] | ((anteriores: EquipeRodada[]) => EquipeRodada[]), grupo?: string) {
+    const novas = typeof proxima === 'function' ? proxima(equipes) : proxima;
+    setHistorico(h => registrarMontagem(h, equipes, novas, grupo));
+    setRascunho(atual => ({ ...atual, editado: true, equipes: novas }));
   }
   function carregarFormacaoAtual() {
     if (ajustesLocais && !window.confirm('Descartar os ajustes deste formulário e carregar a formação salva atualmente? Nenhuma súmula será modificada.')) return;
     setRascunho(criarRascunhoTimes(rodada.equipes, novoId));
-    setFormacaoAnterior(null); setErro(''); setBusca(''); setFiltro('todos');
+    setHistorico(historicoMontagemVazio()); setErro(''); setBusca(''); setFiltro('todos');
     setAviso('Formação atual carregada. Os ajustes locais anteriores foram descartados.');
   }
   function distribuirPorChegada() {
     if (!podeEditar || !presente.length || !equipes.length) return;
     if (presente.length < equipes.length) { setErro('Há mais times do que jogadores presentes.'); return; }
     if (!window.confirm('Distribuir por ordem de chegada? Isso substituirá a montagem deste formulário. Não é sorteio. Você poderá desfazer e revisar antes de confirmar os times.')) return;
-    setFormacaoAnterior(copiarEquipes(equipes));
     const grupos = distribuirPorChegadaAteSete(presentesIds, equipes.length);
     alterarEquipes(equipes.map((e, i) => ({ ...e, atletas: grupos[i] })));
     const disponiveis = Math.max(0, presente.length - equipes.length * JOGADORES_POR_TIME);
@@ -75,14 +76,16 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   function liberarTodos() {
     if (!podeEditar || !equipes.some(e => e.atletas.length)) return;
     if (!window.confirm('Retirar todos os jogadores dos times neste formulário? A formação só será aplicada após salvar.')) return;
-    setFormacaoAnterior(copiarEquipes(equipes));
     alterarEquipes(equipes.map(e => ({ ...e, atletas: [] })));
     setAviso('Alocação limpa apenas no formulário. Use Desfazer última alteração para recuperar.'); setErro('');
   }
-  function desfazerOrganizacao() {
-    if (!podeEditar || !formacaoAnterior) return;
-    alterarEquipes(copiarEquipes(formacaoAnterior)); setFormacaoAnterior(null);
-    setAviso('Última organização local restaurada. Confira e confirme para aplicar.'); setErro('');
+  function executarHistorico(refazer = false) {
+    if (!podeEditar) return;
+    const resultado = moverHistoricoMontagem(historico, equipes, refazer);
+    if (!resultado) return;
+    setHistorico(resultado.historico);
+    setRascunho(atual => ({...atual, editado:true, equipes:resultado.equipes}));
+    setAviso(`${refazer ? 'Alteração refeita' : 'Última alteração desfeita'} apenas nesta montagem. Confira os times antes de confirmar.`); setErro('');
   }
   function adicionarEquipe() {
     if (!podeEditar) return;
@@ -94,7 +97,6 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (!podeEditar || equipes.length <= 2) return;
     const equipe = equipes.find(e => e.id === id);
     if (equipe?.atletas.length && !window.confirm(`Remover ${equipe.nome}? Seus jogadores ficarão disponíveis. A alteração só será aplicada após salvar.`)) return;
-    setFormacaoAnterior(copiarEquipes(equipes));
     alterarEquipes(prev => prev.filter(e => e.id !== id));
     setErro(''); setAviso('');
   }
@@ -102,20 +104,20 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (!podeEditar) return;
     try {
       const proxima = atribuirJogador(equipes, presentesIds, id, equipeId);
-      if (proxima !== equipes) { setFormacaoAnterior(copiarEquipes(equipes)); alterarEquipes(proxima); }
+      if (proxima !== equipes) { alterarEquipes(proxima); }
       setErro(''); setAviso('');
     } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível alterar o time.'); }
   }
   function renomear(equipeId: string, nome: string) {
     if (!podeEditar) return;
-    alterarEquipes(prev => prev.map(e => e.id === equipeId ? { ...e, nome } : e));
+    alterarEquipes(prev => prev.map(e => e.id === equipeId ? { ...e, nome } : e), `nome:${equipeId}`);
     setErro(''); setAviso('');
   }
   function trocar() {
     if (!podeEditar) return;
     try {
       const proxima = trocarJogadores(equipes, presentesIds, trocaA, trocaB);
-      setFormacaoAnterior(copiarEquipes(equipes)); alterarEquipes(proxima);
+      alterarEquipes(proxima);
       setAviso('Jogadores trocados. Confira os times e confirme para aplicar.'); setErro(''); setTrocaA(''); setTrocaB('');
     } catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível trocar os jogadores.'); }
   }
@@ -129,7 +131,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
         return novo;
       }, 'salvamento dos times do sábado');
       setRascunho({ equipes: copiarEquipes(salvas), origem: assinaturaEquipes(salvas), editado: false });
-      setFormacaoAnterior(null); setErro('');
+      setHistorico(historicoMontagemVazio()); setErro('');
       limparMontagem(rodada.id);
       const completos = salvas.filter(e => e.atletas.length === JOGADORES_POR_TIME).length;
       setAviso(`${salvas.length} times salvos; ${completos} completos. Confira “Salvo no servidor”.`);
@@ -167,7 +169,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
           <div className="multi-team-head"><span className="multi-team-index">TIME {String(i+1).padStart(2,'0')}</span>
             {podeEditar && equipes.length > 2 && <button type="button" className="multi-team-remove" onClick={() => removerEquipe(e.id)} aria-label={`Remover ${e.nome}`}><Trash2 size={18}/></button>}
           </div>
-          <label className="multi-team-name">Nome do time<input value={e.nome} maxLength={40} disabled={!podeEditar} onChange={(ev: ChangeEvent<HTMLInputElement>) => renomear(e.id, ev.target.value)}/></label>
+          <label className="multi-team-name">Nome do time<input value={e.nome} maxLength={40} disabled={!podeEditar} onBlur={() => setHistorico(h => ({...h, grupo:undefined}))} onChange={(ev: ChangeEvent<HTMLInputElement>) => renomear(e.id, ev.target.value)}/></label>
           <div className="multi-team-roster"><strong className={completo ? 'egc8-ready' : 'egc8-pending'}>{e.atletas.length}/7 jogadores · {!presencasValidas ? 'Confira as presenças' : completo ? 'Time completo' : e.atletas.length > 7 ? 'Acima do limite' : `Faltam ${Math.max(0, 7 - e.atletas.length)}`}</strong><p>{e.atletas.length ? e.atletas.map(id => nomePorId.get(id) ?? 'Jogador não localizado').join(' · ') : 'Nenhum jogador escalado'}</p><small>O goleiro será escolhido entre esses 7 na súmula.</small></div>
           {podeEditar && <button type="button" className="ux-manual-open" aria-expanded={timeEmMontagem === e.id} onClick={() => { setTimeEmMontagem(timeEmMontagem === e.id ? '' : e.id); setBuscaManual(''); }}> {timeEmMontagem === e.id ? 'Fechar seleção' : 'Escolher jogadores'} — {e.nome}</button>}
           {podeEditar && timeEmMontagem === e.id && <div className="ux-manual-picker">
@@ -190,7 +192,9 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     {podeEditar && presente.length > 0 && <div className="quick-team-tools" role="group" aria-label="Ferramentas rápidas para montagem dos times">
       <div><strong>Você controla a montagem</strong><small>Escolha os jogadores em cada time. Você também pode mover nomes na lista abaixo.</small></div>
       <button type="button" onClick={liberarTodos} disabled={!equipes.some(e => e.atletas.length)}><X size={19}/> Limpar escalação</button>
-      <button type="button" onClick={desfazerOrganizacao} disabled={!formacaoAnterior}><RotateCcw size={19}/> Desfazer última alteração</button>
+      <button type="button" onClick={() => executarHistorico()} disabled={!historico.anteriores.length}><RotateCcw size={19}/> Desfazer última alteração</button>
+      <button type="button" onClick={() => executarHistorico(true)} disabled={!historico.posteriores.length}><RotateCw size={19}/> Refazer alteração</button>
+      <small className="ux-history-hint">Até 20 alterações nesta tela. Inclui nomes, jogadores e times; não altera partidas já criadas.</small>
     </div>}
     {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Escolha os jogadores do novo time; a montagem atual será mantida.</p>}
     {podeEditar && presente.length > 0 && <details className="ux-maintenance"><summary>Opção adicional: distribuir por ordem de chegada</summary><div className="quick-team-tools"><p>Opcional, sem sorteio: preenche os times em rodízio pela chegada e substitui a montagem local. Revise antes de confirmar.</p><button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir por ordem de chegada</button></div></details>}

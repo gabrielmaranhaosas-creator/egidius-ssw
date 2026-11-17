@@ -70,13 +70,27 @@ function App() {
   const [rodadaDestino, setRodadaDestino] = useState<{ rodadaId?: string; partidaId?: string; destino: CampoDestino } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
+  const morePanel = useRef<HTMLDivElement>(null);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  function fecharMenuMais() { setMoreOpen(false); moreButton.current?.focus(); }
   useEffect(() => {
     if (!moreOpen) return;
-    const fecharNoEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false);
-    };
-    window.addEventListener('keydown', fecharNoEscape);
-    return () => window.removeEventListener('keydown', fecharNoEscape);
+    function controles() {
+      return [...(morePanel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), summary, a[href]') ?? [])].filter(el => el.getClientRects().length > 0);
+    }
+    const frame = window.requestAnimationFrame(() => controles()[0]?.focus());
+    function tecla(event: KeyboardEvent) {
+      if (event.key === 'Escape') { event.preventDefault(); setMoreOpen(false); moreButton.current?.focus(); return; }
+      if (event.key !== 'Tab') return;
+      const lista = controles(); if (!lista.length) return;
+      const ativo = document.activeElement;
+      if (ativo === moreButton.current) { event.preventDefault(); (event.shiftKey ? lista.at(-1) : lista[0])?.focus(); }
+      else if (event.shiftKey && ativo === lista[0] || !event.shiftKey && ativo === lista.at(-1)) { event.preventDefault(); moreButton.current?.focus(); }
+    }
+    function redimensionar() { if(window.matchMedia('(min-width: 741px)').matches) setMoreOpen(false); }
+    window.addEventListener('keydown',tecla);
+    window.addEventListener('resize',redimensionar);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener('keydown',tecla); window.removeEventListener('resize',redimensionar); };
   }, [moreOpen]);
   const [rankingMode, setRankingMode] = useState<RankingMode>('pontos');
   const dados = useDadosSSW();
@@ -209,8 +223,8 @@ function App() {
         </div>
       </footer>
       {moreOpen&&<>
-        <button className="ssw-more-scrim" type="button" aria-label="Fechar menu Mais" onClick={()=>setMoreOpen(false)} />
-        <div className="ssw-mobile-more" id="egidius-mobile-more" role="group" aria-label="Mais opções"><button type="button" onClick={()=>navigate('atletas')}><UsersRound size={21}/><span>Jogadores</span></button>
+        <button className="ssw-more-scrim" type="button" aria-label="Fechar menu Mais" onClick={fecharMenuMais} />
+        <div ref={morePanel} className="ssw-mobile-more" id="egidius-mobile-more" role="group" aria-label="Mais opções"><button type="button" onClick={()=>navigate('atletas')}><UsersRound size={21}/><span>Jogadores</span></button>
           <button type="button" onClick={()=>navigate('viagem')}><BusFront size={21}/><span>VIAGEM - SSW</span></button>
           <button type="button" onClick={()=>navigate('rodada')}><CircleDot size={21}/><span>Organizar sábado</span></button>
           <button type="button" onClick={()=>navigate('rankings')}><Trophy size={21}/><span>Ranking</span></button>
@@ -227,7 +241,7 @@ function App() {
       </>}
       <nav className="mobile-nav" aria-label="Navegação inferior">
         {sections.filter(x=>['campo','rodada','expressa'].includes(x.id)).map(({id,Icon}) => <button type="button" onClick={()=>navigate(id)} key={id} aria-current={id===screen?'page':undefined} className={id===screen?'mobile-link mobile-link--active':'mobile-link'}><Icon size={24}/><small>{id==='campo'?'Início':id==='rodada'?'Organizar':'Súmula'}</small></button>)}
-        <button type="button" className={`mobile-link ${(moreOpen||['atletas','viagem','midia','inicio','rankings','historia','importar'].includes(screen))?'mobile-link--active':''}`} onClick={()=>setMoreOpen(v=>!v)} aria-expanded={moreOpen} aria-controls="egidius-mobile-more">{moreOpen?<X size={24}/>:<Menu size={24}/>}<small>Mais</small></button>
+        <button type="button" ref={moreButton} className={`mobile-link ${(moreOpen||['atletas','viagem','midia','inicio','rankings','historia','importar'].includes(screen))?'mobile-link--active':''}`} onClick={()=>setMoreOpen(v=>!v)} aria-expanded={moreOpen} aria-controls="egidius-mobile-more">{moreOpen?<X size={24}/>:<Menu size={24}/>}<small>Mais</small></button>
       </nav>
     </main>
   </div>;
