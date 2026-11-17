@@ -164,3 +164,8 @@ body{background:var(--md-paper)}
 .shell--matchday .athletes-card{border-color:var(--md-line);box-shadow:none}
 .shell--matchday .athletes-card-avatar{background:radial-gradient(circle at 30% 10%,#e2be7a,#9f603c);border-color:#f0e5d2;font-family:'Barlow Condensed',Impact,sans-serif}
 @media(max-width:740px){.shell--matchday .athletes-heading{min-height:80px;padding:17px}.shell--matchday .athletes-heading h1{font-size:33px;margin:0}.shell--matchday .athletes-heading p{display:none}}
+.shell--matchday .ux-history-hint{font-size:11px;line-height:1.6;color:#71614b}
+.shell--matchday .quick-team-tools:has(.ux-history-hint){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.shell--matchday .quick-team-tools:has(.ux-history-hint)>div,.shell--matchday .ux-history-hint{grid-column:1/-1}
+.shell--matchday .quick-team-tools:has(.ux-history-hint)>button{justify-content:center;white-space:normal;min-width:0;margin:0}
+@media(max-width:600px){.shell--matchday .quick-team-tools:has(.ux-history-hint){grid-template-columns:repeat(2,minmax(0,1fr))}.shell--matchday .quick-team-tools:has(.ux-history-hint)>button:first-of-type{grid-column:1/-1}}
