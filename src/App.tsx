@@ -28,14 +28,14 @@ type Screen = 'expressa' | 'campo' | 'inicio' | 'rodada' | 'atletas' | 'album' |
 type RankingMode = 'pontos' | 'gols' | 'presencas' | 'goleiros';
 const sections: { id: Screen; label: string; Icon: ElementType }[] = [
   { id: 'campo', label: 'Início', Icon: Home },
-  { id: 'expressa', label: 'Súmula', Icon: Target },
-  { id: 'inicio', label: 'Visão geral', Icon: Home },
   { id: 'rodada', label: 'Organizar sábado', Icon: CircleDot },
-  { id: 'viagem', label: 'VIAGEM - SSW', Icon: BusFront },
-  { id: 'atletas', label: 'Jogadores', Icon: UsersRound },
-  { id: 'importar', label: 'Importar e arquivos', Icon: FileUp },
-  { id: 'midia', label: 'Mídia', Icon: Images },
+  { id: 'expressa', label: 'Súmula', Icon: Target },
   { id: 'rankings', label: 'Rankings', Icon: Trophy },
+  { id: 'midia', label: 'Mídia', Icon: Images },
+  { id: 'atletas', label: 'Jogadores', Icon: UsersRound },
+  { id: 'inicio', label: 'Visão geral', Icon: Home },
+  { id: 'importar', label: 'Importar e arquivos', Icon: FileUp },
+  { id: 'viagem', label: 'VIAGEM - SSW', Icon: BusFront },
   { id: 'historia', label: 'Nossa história', Icon: BookOpen },
 ];
 
@@ -117,7 +117,7 @@ function App() {
   useEffect(() => {
     if (screen !== 'rodada' || !rodadaDestino) return;
     const ids: Record<CampoDestino, string> = {
-      rodadas: 'rounds-title', cadastro: 'eg-cadastro', presencas: 'eg-checkin', times: 'eg-team-board',
+      rodadas: 'eg-create-round', cadastro: 'eg-cadastro', presencas: 'eg-checkin', times: 'eg-team-board',
       confronto: 'eg-next-game', partidas: rodadaDestino.partidaId ? `eg-game-${rodadaDestino.partidaId}` : 'eg-game-list',
     };
     const id = window.requestAnimationFrame(() => {
@@ -129,27 +129,27 @@ function App() {
     return () => window.cancelAnimationFrame(id);
   }, [screen, rodadaDestino]);
 
-  return <div className="shell">
+  return <div className="shell shell--matchday">
     <aside className="sidebar">
       <button type="button" className="brand" onClick={() => navigate('campo')} aria-label="Ir para a página inicial do EGIDIUS"><img className="brand-crest" src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><span className="brand-wordmark"><strong>EGIDIUS<span>.</span></strong><small>SÁBADO SHOW</small></span></button>
-      <div className="sidebar-label">PLATAFORMA SSW</div>
+      <div className="sidebar-label">SEU SÁBADO, EM CAMPO</div>
       <nav aria-label="Navegação principal" className="side-nav">
-        {sections.filter(x => ['campo','expressa','rodada','viagem','atletas','rankings'].includes(x.id)).map(({ id, label, Icon }) =>
+        {sections.filter(x => ['campo','rodada','expressa','atletas','midia','rankings'].includes(x.id)).map(({ id, label, Icon }) =>
           <button aria-current={screen===id?'page':undefined} className={`side-link ${screen === id ? 'side-link--active' : ''}`} key={id} onClick={() => navigate(id)} type="button"><Icon size={18}/><span>{label}</span>{screen === id && <span className="side-active-dot"/>}</button>)}
         <button type="button" className="side-link side-link--extras" onClick={() => setExtrasOpen(v => !v)} aria-expanded={extrasOpen} aria-controls="ssw-desktop-extras"><Menu size={18}/><span>Outras opções</span><ChevronRight size={18}/></button>
         {extrasOpen && <div id="ssw-desktop-extras" className="ssw-desktop-extras">
-          {sections.filter(x => ['inicio','importar','midia','historia'].includes(x.id)).map(({ id, label, Icon }) =>
+          {sections.filter(x => ['inicio','importar','viagem','historia'].includes(x.id)).map(({ id, label, Icon }) =>
             <button aria-current={screen===id?'page':undefined} className={`side-link ${screen === id ? 'side-link--active' : ''}`} key={id} onClick={() => navigate(id)} type="button"><Icon size={18}/><span>{label}</span></button>)}
         </div>}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-badge"><div className="badge-stars">✦ ✦ ✦ ✦</div><strong>O futebol de todo sábado.</strong><p>Uma história que merece ser contada.</p></div><div className="sidebar-footer"><span className="online-dot"/> EGIDIUS · SÁBADO SHOW</div></div>
     </aside>
 
-    <main className={`main ${screen === 'campo' ? 'main--campo' : ''}`}>
-      <header className="topbar"><div className="breadcrumb"><span>SÁBADO SHOW</span><ChevronRight size={15}/><strong>{sections.find(x=>x.id===screen)?.label.toUpperCase()}</strong></div><div className="top-right"><div className="prototype-indicator"><span className="prototype-led"/> DADOS NO SERVIDOR</div><div className="top-avatar">SSW</div></div></header>
+    <a className="matchday-skip" href="#egidius-conteudo">Pular para o conteúdo</a>
+    <main id="egidius-conteudo" tabIndex={-1} className={`main ${screen === 'campo' ? 'main--campo' : ''}`}>
+      <header className="topbar"><div className="breadcrumb"><span>SÁBADO SHOW</span><ChevronRight size={15}/><strong>{sections.find(x=>x.id===screen)?.label.toUpperCase()}</strong></div><div className="top-right"><div className="prototype-indicator"><span className="prototype-led"/> FEITO PARA O SÁBADO</div><div className="top-avatar">SSW</div></div></header>
       <div className="page"><RecuperarTela key={screen}><Suspense fallback={<p role="status">Abrindo esta área do EGIDIUS…</p>}><ConteudoComFoco>
         {screen === 'campo' && <>
-          <div className="ssw-trip-launch ssw-trip-archive"><div><strong>VIAGEM – SSW</strong><small>Memória do evento · 24/10/2026 · Goiânia/GO · 11 × 11</small></div><button type="button" onClick={()=>navigate('viagem')}>Abrir viagem</button></div>
           <CampoPage abrir={abrirRodada} abrirExpressa={abrirExpressa} rodadaId={sabadoAtivo} onRodadaChange={selecionarSabado}/>
         </>}
         {screen === 'expressa' && <ExpressPage initialRoundId={expressTarget.rodadaId || sabadoAtivo} initialGameId={expressTarget.gameId} onRoundChange={selecionarSabado} organizar={(id)=>abrirRodada('times',id)} abrirCompleta={(rodadaId,jogoId)=>abrirRodada('partidas',rodadaId,jogoId)}/>}

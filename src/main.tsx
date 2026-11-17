@@ -16,6 +16,7 @@ import './styles/ssw-times-09c8.css';
 import './styles/ssw-interactions-09c9.css';
 
 import './styles/ssw-navegacao-limpa.css';
+import './styles/ssw-matchday.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><SyncGate><App/></SyncGate></React.StrictMode>,

@@ -1,8 +1,11 @@
+import { jornadaSabado } from './JornadaSabado';
+import { normalizarBusca } from './Busca';
+import { usePapel } from './Permissoes';
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   ArrowRight, CalendarDays, ChevronDown, ChevronRight, ClipboardList,
-  Plus, Search, Shield, Target, Trophy, Trash2, Undo2, UsersRound, X,
+  Plus, Search, Shield, Target, Trophy, Trash2, Undo2, UsersRound, X, Check, ArrowUpRight,
 } from 'lucide-react';
 import { atualizarDados, dataFormatada, desfazerAcao, historicoAcoes, useDadosSSW } from './SSWStore';
 import { checkInCentral, retirarChegada, rodadaCentral, statusRodada, ultimosJogos } from './CampoRules';
@@ -29,6 +32,8 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   const [erro, setErro] = useState('');
   const rodada = rodadaCentral(dados, rodadaId);
   const progresso = statusRodada(rodada, dados.jogadores);
+  const jornada = jornadaSabado(rodada, dados);
+  const consulta = usePapel() === 'viewer';
   const precisaCadastro = dados.jogadores.length === 0;
   const jogos = ultimosJogos(rodada);
   const historico = historicoAcoes();
@@ -37,7 +42,7 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   const presentes = rodada?.presencas ?? [];
   const buscaAtiva = busca.trim().length > 0;
   const jogadores = dados.jogadores.filter(j =>
-    j.nome.toLocaleLowerCase('pt-BR').includes(busca.trim().toLocaleLowerCase('pt-BR'))
+    normalizarBusca(j.nome).includes(normalizarBusca(busca))
     && (buscaAtiva || (abaChegada === 'presentes' ? presentes.includes(j.id) : !presentes.includes(j.id)))
   ).sort((a, b) => {
     const posA = presentes.indexOf(a.id), posB = presentes.indexOf(b.id);
@@ -115,30 +120,44 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   }
 
   return <div className="campo-page campo-page--simples">
-    <header className="campo-simple-brand">
-      <img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/>
-      <div><span>SÁBADO SHOW</span><h1>Nosso futebol</h1></div>
-    </header>
-
-    <section className="campo-simple-round" aria-label="Sábado selecionado">
-      <div className="campo-simple-round-title"><CalendarDays size={22} aria-hidden="true"/><strong>Qual sábado?</strong></div>
-      {dados.rodadas.length ? <select aria-label="Selecionar sábado" value={rodada?.id ?? ''} onChange={trocarRodada}>
-        {[...dados.rodadas].sort((a,b) => b.data.localeCompare(a.data)).map(r =>
-          <option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}
-      </select> : <p>Não há sábados cadastrados. Crie o primeiro para começar.</p>}
-      <div className="campo-simple-summary" aria-label="Resumo do sábado">
-        <span><strong>{progresso.presentes}</strong> presentes</span>
-        <span><strong>{progresso.timesCompletos}</strong> times completos</span>
-        <span><strong>{progresso.jogos}</strong> jogos</span>
+    <section className="matchday-hero" aria-labelledby="matchday-title">
+      <div className="matchday-hero-copy">
+        <span className="matchday-eyebrow"><span/> SÁBADO SHOW · NOSSO FUTEBOL</span>
+        <h1 id="matchday-title">{jornada.titulo}</h1>
+        <p>{jornada.texto}</p>
+        <button className="matchday-primary" type="button" onClick={() => {
+          if(jornada.tipo === 'sumula') abrirExpressa(rodada?.id,jornada.jogoId);
+          else if(jornada.tipo === 'chegadas') {if(!mostraPresencas)alternarChegadas();else document.getElementById('ssw-chegadas')?.scrollIntoView({behavior:'smooth',block:'start'});}
+          else ir(jornada.destino);
+        }}>{jornada.acao}<ArrowUpRight size={21} aria-hidden="true"/></button>
+        <span className="matchday-hero-note"><Shield size={15} aria-hidden="true"/> Você escolhe os times. O histórico fica preservado.</span>
       </div>
+      <section className="matchday-round" aria-label="Sábado selecionado">
+        <label htmlFor="matchday-round-select"><CalendarDays size={18} aria-hidden="true"/> SÁBADO EM FOCO</label>
+        {dados.rodadas.length ? <select id="matchday-round-select" aria-label="Selecionar sábado" value={rodada?.id ?? ''} onChange={trocarRodada}>
+          {[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)).map(r=><option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}
+        </select> : <p>Nenhum sábado cadastrado.</p>}
+        <div className="matchday-stats" aria-label="Resumo do sábado">
+          <div><strong>{String(progresso.presentes).padStart(2,'0')}</strong><span>presentes</span></div>
+          <div><strong>{String(progresso.timesCompletos).padStart(2,'0')}</strong><span>times completos</span></div>
+          <div><strong>{String(progresso.encerrados).padStart(2,'0')}</strong><span>jogos encerrados</span></div>
+        </div>
+        <button type="button" className="matchday-date-link" onClick={()=>ir('rodadas')}>Criar outro sábado <Plus size={17}/></button>
+      </section>
     </section>
 
-    <button type="button" className="campo-simple-main-action" onClick={() => !rodada ? ir('rodadas') : precisaCadastro ? ir('cadastro') : alternarChegadas()} aria-expanded={rodada && !precisaCadastro ? mostraPresencas : undefined} aria-controls={rodada && !precisaCadastro ? 'ssw-chegadas' : undefined}>
-      <UsersRound size={30} aria-hidden="true"/>
-      <span><strong>{!rodada ? 'Criar sábado' : precisaCadastro ? 'Cadastrar jogadores' : 'Marcar chegada'}</strong><small>{!rodada ? 'Cadastre o primeiro sábado' : precisaCadastro ? 'Adicione os nomes para começar' : 'Escolha o nome do jogador'}</small></span>
-      {mostraPresencas ? <ChevronDown size={26} aria-hidden="true"/> : <ChevronRight size={26} aria-hidden="true"/>}
-    </button>
-
+    <nav className="matchday-journey" aria-label="Jornada do sábado">
+      {[
+        {titulo:'Chegadas',texto:`${progresso.presentes} presentes`,Icon:UsersRound,feito:progresso.presentes>=14,acao:()=>rodada&&!precisaCadastro?alternarChegadas():ir(precisaCadastro&&rodada?'cadastro':'rodadas')},
+        {titulo:'Times',texto:'Escolha manual',Icon:Shield,feito:progresso.confrontoPronto,acao:()=>ir(rodada?'times':'rodadas')},
+        {titulo:'Partidas',texto:progresso.rascunhos?`${progresso.rascunhos} em edição`:'Goleiros e placar',Icon:Target,feito:progresso.encerrados>0&&!progresso.rascunhos,acao:()=>rodada?abrirExpressa(rodada.id):ir('rodadas')},
+        {titulo:'Resultados',texto:`${progresso.encerrados} encerrados`,Icon:Trophy,feito:false,acao:verResultados},
+      ].map((etapa,i)=><button type="button" key={etapa.titulo} onClick={etapa.acao} aria-current={jornada.etapa===i?'step':undefined} className={etapa.feito?'is-complete':''}>
+        <span className="matchday-step-number">{etapa.feito?<Check size={18} aria-label="Pronto"/>:String(i+1).padStart(2,'0')}</span>
+        <span><strong>{etapa.titulo}</strong><small>{etapa.texto}</small></span><etapa.Icon size={21} aria-hidden="true"/>
+      </button>)}
+    </nav>
+    {consulta && <p className="ux-draft-note">Modo consulta: você pode acompanhar os sábados e resultados. Alterações exigem acesso de operação.</p>}
     {mostraPresencas && <section id="ssw-chegadas" className="campo-simple-panel" aria-label="Marcar chegada de jogadores">
       <h2>Quem chegou?</h2>
       <p>Toque em <strong>Chegou</strong> para marcar. Se errar, abra <strong>Já chegaram</strong> e use <strong>Retirar</strong>.</p>
@@ -164,8 +183,8 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
               {posicao >= 0 && <small>Chegada #{posicao + 1}{protegido ? ' · Já está escalado' : ''}</small>}
             </span>
             {posicao < 0
-              ? <button type="button" className="campo-chegada-add" onClick={() => checkin(j.id)} aria-label={`Marcar chegada de ${j.nome}`}><Plus size={19}/> Chegou</button>
-              : <button type="button" className="campo-chegada-remove" disabled={protegido} title={protegido ? 'Remova primeiro dos times e súmulas para alterar a chegada' : undefined} onClick={() => retirar(j.id)} aria-label={protegido ? `${j.nome}: presença protegida porque já está escalado` : `Retirar presença de ${j.nome}`}>
+              ? <button type="button" className="campo-chegada-add" disabled={consulta} onClick={() => checkin(j.id)} aria-label={`Marcar chegada de ${j.nome}`}><Plus size={19}/> Chegou</button>
+              : <button type="button" className="campo-chegada-remove" disabled={consulta || protegido} title={protegido ? 'Remova primeiro dos times e súmulas para alterar a chegada' : undefined} onClick={() => retirar(j.id)} aria-label={protegido ? `${j.nome}: presença protegida porque já está escalado` : `Retirar presença de ${j.nome}`}>
                 {protegido ? <><Shield size={18}/> Escalado</> : <><Trash2 size={18}/> Retirar</>}
                 </button>}
           </div>;
@@ -181,14 +200,11 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
       </div>
     </section>}
 
-    <section className="campo-simple-actions" aria-label="O que você quer fazer?">
-      <h2>O que vamos fazer?</h2>
-      <div className="campo-simple-action-grid">
-        <button type="button" onClick={() => ir('times')}><Shield size={27}/><strong>Montar ou revisar times</strong><ChevronRight size={21}/></button>
-        <button type="button" onClick={() => progresso.confrontoPronto ? abrirExpressa(rodada?.id) : ir(progresso.presentes ? 'times' : 'presencas')}><Target size={27}/><strong>{rodada?.jogos.length ? 'Abrir súmula' : 'Criar partida'}</strong><ChevronRight size={21}/></button>
-        <button type="button" onClick={verResultados}><Trophy size={27}/><strong>Resultados</strong><ChevronRight size={21}/></button>
-        {rodada && rodada.jogos.length > 0 && <button type="button" onClick={() => progresso.confrontoPronto ? abrirExpressa(rodada.id, '__novo_jogo__') : ir('times')}><Plus size={27}/><strong>Criar próxima partida</strong><ChevronRight size={21}/></button>}
-      </div>
+    <section className="matchday-quick-actions" aria-label="Ações do sábado">
+      <div><span className="matchday-section-label">NO SEU RITMO</span><h2>O sábado continua.</h2><p>Volte a qualquer etapa sem perder os jogos anteriores.</p></div>
+      <button type="button" onClick={()=>rodada&&!precisaCadastro?alternarChegadas():ir(precisaCadastro&&rodada?'cadastro':'rodadas')} aria-expanded={mostraPresencas} aria-controls="ssw-chegadas"><UsersRound size={23}/><span><strong>Registrar chegada</strong><small>Novos jogadores e presenças</small></span><ChevronRight size={20}/></button>
+      <button type="button" onClick={()=>ir(rodada?'times':'rodadas')}><Shield size={23}/><span><strong>Montar ou revisar times</strong><small>Você escolhe quem joga junto</small></span><ChevronRight size={20}/></button>
+      <button type="button" onClick={()=>rodada?abrirExpressa(rodada.id):ir('rodadas')}><ClipboardList size={23}/><span><strong>Abrir súmula</strong><small>Gols, goleiros e encerramento</small></span><ChevronRight size={20}/></button>
     </section>
 
     <section id="ssw-resultados" className="campo-simple-details">

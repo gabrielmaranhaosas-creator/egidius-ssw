@@ -128,6 +128,6 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
       </article>)}</div>}
       <p className="media-footer-note"><Video size={19}/> Para guardar registros e arquivos juntos, baixe o backup completo em Importar e arquivos → Guia e backup.</p>
     </section>
-    <LixeiraArquivos atualizar={()=>void reload()}/>
+    <LixeiraArquivos atualizar={()=>{setMessage('');void reload();}}/>
   </section>;
 }
