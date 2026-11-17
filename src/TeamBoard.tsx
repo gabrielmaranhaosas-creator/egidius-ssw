@@ -1,7 +1,7 @@
-import { historicoMontagemVazio, registrarMontagem, moverHistoricoMontagem } from './HistoricoMontagem';
+import { historicoMontagemVazio, registrarMontagem, moverHistoricoMontagem, montagemFoiEditada } from './HistoricoMontagem';
 import { usePapel } from './Permissoes';
 import { normalizarBusca } from './Busca';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { Check, LockKeyhole, Plus, Save, ShieldCheck, Trash2, UsersRound, RotateCcw, RotateCw, Shuffle, X, Search, ChevronDown } from 'lucide-react';
 import type { EquipeRodada, Jogador, Rodada } from './SSWStore';
@@ -19,6 +19,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     const guardado = lerMontagem(rodada.id);
     return guardado && !montagemPersistidaNoServidor(guardado, rodada.equipes) ? guardado : criarRascunhoTimes(rodada.equipes, novoId);
   });
+  const montagemInicial = useRef(rascunho);
   const [erroRascunho, setErroRascunho] = useState('');
   const [timeEmMontagem, setTimeEmMontagem] = useState('');
   const [buscaManual, setBuscaManual] = useState('');
@@ -50,17 +51,19 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (rascunho.origem !== assinaturaAtual && !ajustesLocais) {
       setHistorico(historicoMontagemVazio()); setErro(''); setAviso('');
     }
-    setRascunho(atual => reconciliarRascunhoTimes(atual, rodada.equipes, novoId));
+    const proximo = reconciliarRascunhoTimes(rascunho, rodada.equipes, novoId);
+    if(proximo !== rascunho) { montagemInicial.current = proximo; setRascunho(proximo); }
   }, [assinaturaAtual, rodada.equipes, rascunho.origem, ajustesLocais]);
 
   function alterarEquipes(proxima: EquipeRodada[] | ((anteriores: EquipeRodada[]) => EquipeRodada[]), grupo?: string) {
     const novas = typeof proxima === 'function' ? proxima(equipes) : proxima;
     setHistorico(h => registrarMontagem(h, equipes, novas, grupo));
-    setRascunho(atual => ({ ...atual, editado: true, equipes: novas }));
+    setRascunho(atual => ({ ...atual, editado: montagemFoiEditada(montagemInicial.current, novas), equipes: novas }));
   }
   function carregarFormacaoAtual() {
     if (ajustesLocais && !window.confirm('Descartar os ajustes deste formulário e carregar a formação salva atualmente? Nenhuma súmula será modificada.')) return;
-    setRascunho(criarRascunhoTimes(rodada.equipes, novoId));
+    const inicial = criarRascunhoTimes(rodada.equipes, novoId);
+    montagemInicial.current = inicial; setRascunho(inicial);
     setHistorico(historicoMontagemVazio()); setErro(''); setBusca(''); setFiltro('todos');
     setAviso('Formação atual carregada. Os ajustes locais anteriores foram descartados.');
   }
@@ -84,7 +87,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     const resultado = moverHistoricoMontagem(historico, equipes, refazer);
     if (!resultado) return;
     setHistorico(resultado.historico);
-    setRascunho(atual => ({...atual, editado:true, equipes:resultado.equipes}));
+    setRascunho(atual => ({...atual, editado:montagemFoiEditada(montagemInicial.current, resultado.equipes), equipes:resultado.equipes}));
     setAviso(`${refazer ? 'Alteração refeita' : 'Última alteração desfeita'} apenas nesta montagem. Confira os times antes de confirmar.`); setErro('');
   }
   function adicionarEquipe() {
@@ -130,7 +133,8 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
         salvas = novo.rodadas.find(r => r.id === rodada.id)!.equipes;
         return novo;
       }, 'salvamento dos times do sábado');
-      setRascunho({ equipes: copiarEquipes(salvas), origem: assinaturaEquipes(salvas), editado: false });
+      const inicial = { equipes: copiarEquipes(salvas), origem: assinaturaEquipes(salvas), editado: false };
+      montagemInicial.current = inicial; setRascunho(inicial);
       setHistorico(historicoMontagemVazio()); setErro('');
       limparMontagem(rodada.id);
       const completos = salvas.filter(e => e.atletas.length === JOGADORES_POR_TIME).length;

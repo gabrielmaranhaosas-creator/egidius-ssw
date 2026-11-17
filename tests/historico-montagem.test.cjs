@@ -37,3 +37,13 @@ test('digitar e devolver o mesmo nome não deixa uma ação vazia no histórico'
  h=r.registrarMontagem(h,temporaria,base,'nome:0');assert.equal(h.anteriores.length,0);assert.equal(r.moverHistoricoMontagem(h,base),null);
  const nova=base.map((e,i)=>i?e:{...e,nome:'Nova edição'});h=r.registrarMontagem(h,base,nova,'nome:0');assert.deepEqual(r.moverHistoricoMontagem(h,nova).equipes,base);
 });
+
+test('desfazer toda edição antes do primeiro salvamento devolve o formulário ao estado inicial',()=>{
+ const r=iniciar(),inicial=r.rules.criarRascunhoTimes([],(()=>{let i=0;return()=>String(++i);})());
+ assert.equal(inicial.editado,false);const nova=inicial.equipes.map((e,i)=>i?e:{...e,nome:'Alterado'});
+ const h=r.registrarMontagem(r.historicoMontagemVazio(),inicial.equipes,nova);assert.equal(r.montagemFoiEditada(inicial,nova),true);
+ const original=r.moverHistoricoMontagem(h,nova).equipes;assert.equal(r.montagemFoiEditada(inicial,original),false);assert.deepEqual(original,inicial.equipes);
+});
+test('retornar ao rascunho recuperado mantém a pendência que já existia na abertura',()=>{
+ const r=iniciar(),inicial={equipes:f.equipes(),origem:'base anterior',editado:true};assert.equal(r.montagemFoiEditada(inicial,structuredClone(inicial.equipes)),true);
+});

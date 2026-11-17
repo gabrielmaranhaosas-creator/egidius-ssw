@@ -1,4 +1,5 @@
 import type { EquipeRodada } from './SSWStore';
+import type { RascunhoTimes } from './TeamBoardRules';
 import { assinaturaEquipes, copiarEquipes } from './TeamBoardRules';
 export type HistoricoMontagem = { anteriores: EquipeRodada[][]; posteriores: EquipeRodada[][]; grupo?: string };
 const LIMITE = 20;
@@ -17,4 +18,9 @@ export function moverHistoricoMontagem(h: HistoricoMontagem, atual: EquipeRodada
   return { equipes: copiarEquipes(destino), historico: refazer
     ? { anteriores: [...h.anteriores, copiarEquipes(atual)].slice(-LIMITE), posteriores: h.posteriores.slice(0,-1) }
     : { anteriores: h.anteriores.slice(0,-1), posteriores: [...h.posteriores, copiarEquipes(atual)].slice(-LIMITE) } };
+}
+
+/** Voltar à montagem inicial também restaura seu estado de edição, inclusive antes do primeiro salvamento. */
+export function montagemFoiEditada(inicial: RascunhoTimes, equipes: EquipeRodada[]): boolean {
+  return inicial.editado || assinaturaEquipes(inicial.equipes) !== assinaturaEquipes(equipes);
 }
