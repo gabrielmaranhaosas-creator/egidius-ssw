@@ -1,3 +1,4 @@
+import { normalizarBusca } from './Busca';
 import { definirDisponibilidade } from './Disponibilidade';
 import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useState } from 'react';
@@ -48,6 +49,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   const [dataDesejada, setDataDesejada] = useState(proximoSabado);
   const [rodadaSelecionada, setRodadaSelecionada] = useState(initialRoundId ?? '');
   const [nomeJogador, setNomeJogador] = useState('');
+  const [buscaChegada, setBuscaChegada] = useState('');
   useTrabalhoPendente('novo-jogador',!!nomeJogador.trim(),'Nome de jogador ainda não cadastrado');
   const [marcarChegadaNoCadastro, setMarcarChegadaNoCadastro] = useState(false);
   const [avisoCadastro, setAvisoCadastro] = useState('');
@@ -209,7 +211,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
     setEtapa(etapaDestino(destino));
     window.requestAnimationFrame(() => {
     const ids: Record<CampoDestino, string> = {
-      rodadas: 'rounds-title', cadastro: 'eg-cadastro', presencas: 'eg-checkin',
+      rodadas: 'eg-create-round', cadastro: 'eg-cadastro', presencas: 'eg-checkin',
       times: 'eg-team-board', confronto: 'eg-next-game', partidas: 'eg-game-list',
     };
     const target = document.getElementById(ids[destino]);
@@ -370,8 +372,8 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   return <section className="rounds-system ux-organizar" aria-labelledby="rounds-title" data-etapa={etapa}>
     <div className="rounds-head"><div><p className="eyebrow">LIVRO DIGITAL DO SÁBADO</p><h2 id="rounds-title">Preparar o sábado<span className="title-dot">.</span></h2><p>Siga as três etapas. O sábado selecionado permanece o mesmo durante a operação.</p></div><span className="rounds-counter">{rodadas.length} {rodadas.length === 1 ? 'SÁBADO' : 'SÁBADOS'} NO EGIDIUS</span></div>
     <div className="rounds-toolbar">
-      <details className="ux-create-round" open={!rodadas.length}><summary>{rodadas.length ? 'Criar outro sábado' : 'Criar o primeiro sábado'}</summary><div>
-      <label className="rounds-date-label">Data do novo sábado<input type="date" value={dataDesejada} onChange={(e: ChangeEvent<HTMLInputElement>) => setDataDesejada(e.target.value)}/></label>
+      <details id="eg-create-round" className="ux-create-round" open={!rodadas.length}><summary>{rodadas.length ? 'Criar outro sábado' : 'Criar o primeiro sábado'}</summary><div>
+      <label className="rounds-date-label">Data do novo sábado<input type="date" value={dataDesejada} onInput={e => setDataDesejada(e.currentTarget.value)} onChange={(e: ChangeEvent<HTMLInputElement>) => setDataDesejada(e.target.value)}/></label>
       <button type="button" className="rounds-add-button" onClick={criarRodada}><Plus size={18}/> Criar ou abrir esta data</button></div></details>
       {rodadas.length > 0 && <label className="rounds-select-label">Selecionar rodada<select value={rodada?.id ?? ''} onChange={(e: ChangeEvent<HTMLSelectElement>) => mudarRodada(e.target.value)}>
         {rodadas.map(r => <option key={r.id} value={r.id}>{dataFormatada(r.data)} · {r.jogos.length} jogos</option>)}
@@ -467,14 +469,15 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
           <div className="quick-attendance-actions">
             <button type="button" onClick={marcarTodosNoSabado} disabled={rodada.presencas.length===dados.jogadores.length}><CheckSquare size={18}/> Marcar todos</button>
             <button type="button" onClick={limparLivres} disabled={!rodada.presencas.some(id=>!atletaEmUso(rodada,id))}><X size={18}/> Limpar livres</button>
-          </div><p className="quick-attendance-hint">Atenção: “Marcar todos” adiciona os novos na ordem do cadastro, não na ordem real de chegada.</p><div className="attendance-grid">
-            {dados.jogadores.map(j => {
+          </div><p className="quick-attendance-hint">Atenção: “Marcar todos” adiciona os novos na ordem do cadastro, não na ordem real de chegada.</p><label className="matchday-arrival-search">Buscar jogador para marcar chegada<input type="search" value={buscaChegada} onChange={e=>setBuscaChegada(e.target.value)} placeholder="Nome do jogador, com ou sem acento"/></label><div className="attendance-grid">
+            {dados.jogadores.filter(j=>normalizarBusca(j.nome).includes(normalizarBusca(buscaChegada))).map(j => {
               const presente = rodada.presencas.includes(j.id);
               return <button key={j.id} type="button" className={`attendance-button ${presente ? 'attendance-button--present' : ''}`} onClick={() => alternarPresenca(j.id)}>
                 <span>{j.nome}</span>{presente ? <span><Check size={14}/> #{rodada.presencas.indexOf(j.id) + 1}</span> : <Plus size={15}/>}
               </button>;
             })}
           </div></>}
+          {buscaChegada && !dados.jogadores.some(j=>normalizarBusca(j.nome).includes(normalizarBusca(buscaChegada))) && <p className="campo-empty" role="status">Nenhum jogador encontrado. Tente outro nome ou limpe a busca.</p>}
           {!!rodada.presencas.length && <div className="arrival-order"><strong>Ordem de chegada:</strong> {rodada.presencas.map(id => nomePorId.get(id) ?? 'Atleta não localizado').join(' → ')}</div>}
         </>}
       </div>

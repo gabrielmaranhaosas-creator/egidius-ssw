@@ -163,7 +163,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
       {equipes.map((e, i) => {
         const presencasValidas = e.atletas.every(id => presentesIds.includes(id));
         const completo = e.atletas.length === JOGADORES_POR_TIME && presencasValidas;
-        return <div key={e.id} className="multi-team-card">
+        return <div key={e.id} className={`multi-team-card ${completo ? 'multi-team-card--ready' : ''}`}>
           <div className="multi-team-head"><span className="multi-team-index">TIME {String(i+1).padStart(2,'0')}</span>
             {podeEditar && equipes.length > 2 && <button type="button" className="multi-team-remove" onClick={() => removerEquipe(e.id)} aria-label={`Remover ${e.nome}`}><Trash2 size={18}/></button>}
           </div>
