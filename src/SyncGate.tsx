@@ -1,4 +1,5 @@
 import { RevisarConflitos } from './RevisarConflitos';
+import { FutebolPublico } from './FutebolPublico';
 import type { Mescla } from './MesclarEstados';
 import { mesclarEstados } from './MesclarEstados';
 import { useResumoPendencias,podeAbandonarEdicao } from './TrabalhoPendente';
@@ -14,7 +15,7 @@ import './SyncGate.css';
 import { definirOperadorMontagem, podeSairDaMontagem, useMontagensPendentes } from './MontagemDrafts';
 
 type Remote = { revision: number; data: DadosSSW };
-type View = 'review'|'loading'|'offline'|'closed'|'choice'|'ready';
+type View = 'review'|'loading'|'offline'|'closed'|'choice'|'ready'|'public';
 type Status = 'saved'|'sending'|'offline'|'conflict';
 type Connection = { revision: number; lastSaved: string; csrf: string; pending: boolean; blocked: boolean; alive: boolean };
 const empty = (d:DadosSSW) => !d.jogadores.length && !d.rodadas.length;
@@ -139,7 +140,11 @@ export function SyncGate({children}:{children:ReactNode}) {
         return;
       }
       escolher(remote,auth.csrf,auth.username);
-    } catch(err) {setMessage((err as Error).message);setView('offline');}
+    } catch(err) {
+      if ((err as Error & {code?:string}).code==='PUBLIC_ACCESS') {
+        definirPapel('viewer');definirGravacaoPermitida(false);setView('public');
+      } else {setMessage((err as Error).message);setView('offline');}
+    }
   }
   useEffect(()=>{stopped.current=false;void restoreSession();return()=>{stopped.current=true;if(session.current)session.current.alive=false;};},[]);
   useEffect(()=>{
@@ -241,11 +246,13 @@ export function SyncGate({children}:{children:ReactNode}) {
     {loginAberto?<EntradaOrganizacao cancelar={()=>setLoginAberto(false)} concluido={()=>{setLoginAberto(false);void restoreSession();}}/>:adminAberto?<Organizacao usuario={username} voltar={()=>setAdminAberto(false)}/>:children}
   </>;
   if(loginAberto)return <div className="gate-wrap"><EntradaOrganizacao cancelar={()=>setLoginAberto(false)} concluido={()=>{setLoginAberto(false);void restoreSession();}}/></div>;
+  if(view==='public')return <FutebolPublico entrar={()=>setLoginAberto(true)}/>;
   return <div className="gate-wrap"><main className="gate-card">
     <div className="gate-logo"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><div><b>EGIDIUS<span>.</span></b><small>SÁBADO SHOW</small></div></div>
     {view==='loading'&&<><Cloud size={32}/><h1>Conectando ao servidor</h1><p>Conferindo sua sessão e os registros das súmulas.</p></>}
     {view==='offline'&&<><CloudOff size={32}/><h1>{message.toLocaleLowerCase().includes('convite') ? 'Convite de acesso necessário' : 'Não foi possível conectar'}</h1><p>{message}</p><p>{message.toLocaleLowerCase().includes('convite') ? 'Abra o link completo de convite recebido. O endereço simples do site ainda não libera o primeiro acesso neste dispositivo.' : 'Tente novamente. Se estiver usando a versão local no Mac, confira se o servidor está iniciado.'}</p><button className="gate-primary" onClick={()=>void restoreSession()}>{message.toLocaleLowerCase().includes('convite')?'Já tenho o convite — verificar acesso':'Tentar novamente'}</button><button type="button" onClick={()=>setLoginAberto(true)}>Acesso de organização</button></>}
     {view==='closed'&&<><ShieldCheck size={32}/><h1>Acesso encerrado</h1><p>No Mac, clique abaixo para abrir novamente. Em outro dispositivo, utilize seu convite.</p><button className="gate-primary" onClick={()=>void restoreSession()}>Abrir EGIDIUS</button><button type="button" onClick={()=>setLoginAberto(true)}>Acesso de organização</button></>}
+    {(view==='offline'||view==='closed')&&<button type="button" onClick={()=>setView('public')}>Consultar futebol sem entrar</button>}
     {view==='choice'&&selected&&<><AlertTriangle size={32}/><h1>{decision==='first'?'Trazer seus dados antigos':'Escolher a base de trabalho'}</h1>
       <p>{decision==='first'?'O servidor está vazio, mas este navegador contém atletas ou rodadas. Nada será importado sem sua escolha.':'Este navegador e o servidor possuem dados diferentes. Nenhuma fonte foi sobrescrita.'}</p>
       <div className="gate-choice"><strong>Neste navegador</strong><span>{obterDadosAtuais().rodadas.length} rodadas · {obterDadosAtuais().jogadores.length} atletas</span></div>

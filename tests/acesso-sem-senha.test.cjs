@@ -50,12 +50,12 @@ test('convite com falha permite nova tentativa sem apagar o endereço', async ()
   assert.equal(limpo, true);
 });
 
-test('endereço externo sem sessão solicita convite e nunca tenta entrada local', async () => {
+test('endereço externo sem sessão sinaliza consulta pública e nunca tenta entrada local', async () => {
   for (const url of ['https://exemplo.test/', 'http://127.0.0.1:8080/', 'http://192.168.1.2:5173/']) {
     const calls = [];
     const entrar = criarAcessoSemSenha(async path => {calls.push(path); return {authenticated: false};},
       () => new URL(url), () => assert.fail());
-    await assert.rejects(entrar(), /convite/);
+    await assert.rejects(entrar(), error=>error.code==='PUBLIC_ACCESS' && /convite/.test(error.message));
     assert.deepEqual(calls, ['/auth/status']);
   }
 });
