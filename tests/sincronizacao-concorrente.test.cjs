@@ -10,7 +10,7 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const pending = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise, resolve}; };
 
 // Executa o componente verdadeiro com hooks, rede e armazenamento controlados.
-async function abrir() {
+async function abrir({publico=false}={}) {
   const states=[], refs=[], effects=[], events=new Map();
   let cursor=0, effectQueue=[], local={versao:5,jogadores:[],rodadas:[]};
   let observer, poll, component;
@@ -38,10 +38,11 @@ async function abrir() {
     if(name==='./SSWStore')return {definirGravacaoPermitida(){},obterDadosAtuais:()=>copy(local),
       adotarDadosDoServidor:data=>{local=copy(data);},
       observarMudancas:fn=>{observer=fn;return ()=>{observer=null;};},exportarBackup(){}};
-    if(name==='./Acesso')return {criarAcessoSemSenha:()=>async()=>({authenticated:true,username:'operador_local',csrf:'teste'})};
+    if(name==='./Acesso')return {criarAcessoSemSenha:()=>async()=>{if(publico)throw Object.assign(Error('Consulta pública'),{code:'PUBLIC_ACCESS'});return {authenticated:true,username:'operador_local',csrf:'teste'};}};
     if(name==='./TrabalhoPendente')return {useResumoPendencias:()=>'',podeAbandonarEdicao:()=>true};
     if(name==='./Permissoes')return {usePapel:()=> 'admin',definirPapel(){}};
     if(name==='./RevisarConflitos')return {};
+    if(name==='./FutebolPublico')return {FutebolPublico:()=>null};
     if(name==='./Organizacao')return {};
     if(name==='./MesclarEstados')return require('./carregar-regras.cjs').load('MesclarEstados');
     if(name==='./MontagemDrafts')return {definirOperadorMontagem(){},podeSairDaMontagem:()=>true,useMontagensPendentes:()=>0};
@@ -60,11 +61,19 @@ async function abrir() {
   function render(){cursor=0;component=module.exports.SyncGate({children:null});
     const next=effectQueue;effectQueue=[];for(const fn of next)fn();return component;}
   render();await flush();render();
-  assert.equal(states[3],'ready');
+  assert.equal(states[3],publico?'public':'ready');
   return {states,render,remote,setResponder:fn=>{responder=fn;},
     visibility(value){window.document.visibilityState=value;events.get('visibilitychange')?.();},
     poll:()=>poll(),edit(data){local=copy(data);observer();},current:()=>copy(local)};
 }
+
+test('visitante sem sessão recebe consulta pública sem carregar ou gravar o estado privado',async()=>{
+  const app=await abrir({publico:true});
+  assert.equal(app.states[3],'public');
+  assert.deepEqual(app.current(),{versao:5,jogadores:[],rodadas:[]});
+  const page=app.render();assert.equal(typeof page.type,'function');assert.equal(typeof page.props.entrar,'function');
+  page.props.entrar();app.render();assert.equal(app.states[1],true);
+});
 
 test('aba oculta suspende consultas e retoma a leitura ao voltar',async()=>{
   const app=await abrir();let calls=0;

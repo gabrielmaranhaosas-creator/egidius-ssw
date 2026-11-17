@@ -80,7 +80,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @app.middleware('http')
     async def permissions(request, call_next):
         path = request.url.path
-        protected = path.startswith('/api/') and not path.startswith('/api/auth/') and path != '/api/health'
+        public_read = request.method == 'GET' and path == '/api/public/football'
+        protected = path.startswith('/api/') and not path.startswith('/api/auth/') and path != '/api/health' and not public_read
         actor = None
         if protected:
             try:
@@ -103,6 +104,16 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 import logging
                 logging.getLogger('egidius').error('Falha ao registrar auditoria de operação concluída.')
         return response
+
+    @app.get('/api/public/football')
+    def football_public(db:DbSession=Depends(get_db)):
+        from .public_football import public_football
+        state = db.get(State, 1)
+        try:
+            value = public_football(state.payload if state else '{"versao":5,"jogadores":[],"rodadas":[]}')
+        except (ValidationError, ValueError):
+            raise HTTPException(503, 'Os dados do futebol estão temporariamente indisponíveis.') from None
+        return JSONResponse(value, headers={'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff'})
 
     @app.get('/api/admin/access')
     def access_list(sess=Depends(session_auth), db:DbSession=Depends(get_db)):

@@ -1,5 +1,13 @@
 # Organizar o sábado no EGIDIUS
 
+## Consulta livre e organização
+
+O endereço https://egidius-ssw.onrender.com/ agora abre a consulta do futebol sem convite: sábados, times, escalações, placares e rankings. Jogos em edição aparecem como provisórios. Escolha a data, use Placares, Times ou Rankings e, quando necessário, Atualizar resultados. A consulta também atualiza periodicamente enquanto a página está visível.
+
+Para registrar ou alterar dados, use Entrar para organizar com uma conta existente ou abra o convite privado recebido. Fichas, fotos, vídeos, PDFs, viagem, lixeiras, contas e backups continuam exigindo autenticação; o endpoint público não inclui esses dados nem as observações das partidas. O acesso de consulta livre não cria conta nem sessão e não importa registros do navegador.
+
+O endereço local do Mac continua separado do site online. Os dados locais não são publicados automaticamente.
+
 ## Preparar
 
 1. Abra **Organizar sábado**. No celular, use **Organizar**, na barra inferior.
