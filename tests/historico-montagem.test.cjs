@@ -30,3 +30,10 @@ test('histórico guarda até vinte ações e isola cópias de jogadores',()=>{
 test('limpeza e restauração da formação mantêm a ordem exata dos jogadores',()=>{
  const r=iniciar(),base=f.equipes(),vazia=base.map(e=>({...e,atletas:[]}));const h=r.registrarMontagem(r.historicoMontagemVazio(),base,vazia),undo=r.moverHistoricoMontagem(h,vazia);assert.deepEqual(undo.equipes,base);assert.deepEqual(r.moverHistoricoMontagem(undo.historico,undo.equipes,true).equipes,vazia);
 });
+
+test('digitar e devolver o mesmo nome não deixa uma ação vazia no histórico',()=>{
+ const r=iniciar(),base=f.equipes(),temporaria=base.map((e,i)=>i?e:{...e,nome:'Nome temporário'});
+ let h=r.registrarMontagem(r.historicoMontagemVazio(),base,temporaria,'nome:0');
+ h=r.registrarMontagem(h,temporaria,base,'nome:0');assert.equal(h.anteriores.length,0);assert.equal(r.moverHistoricoMontagem(h,base),null);
+ const nova=base.map((e,i)=>i?e:{...e,nome:'Nova edição'});h=r.registrarMontagem(h,base,nova,'nome:0');assert.deepEqual(r.moverHistoricoMontagem(h,nova).equipes,base);
+});

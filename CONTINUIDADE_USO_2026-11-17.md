@@ -12,8 +12,8 @@ No menu móvel Mais, a abertura leva o foco ao primeiro comando. Tab e Shift+Tab
 
 ## Validação
 
-- 104 testes de frontend/regras aprovados, incluindo cinco novos cenários do histórico.
-- Casos: nomes, adição e alocação manual, sequência de desfazer/refazer, agrupamento da digitação, invalidação de refazer por uma nova edição, limite de 20, isolamento das cópias e limpeza/restauração da ordem dos jogadores.
+- 105 testes de frontend/regras aprovados, incluindo cinco novos cenários do histórico.
+- Casos: nomes, adição e alocação manual, sequência de desfazer/refazer, agrupamento da digitação, invalidação de refazer por uma nova edição, limite de 20, isolamento das cópias e limpeza/restauração da ordem dos jogadores e digitação que retorna ao nome original.
 - Compilação TypeScript/Vite aprovada.
 - Teste interativo isolado: renomear time, adicionar outro, desfazer ambos, refazer e verificar a preservação da partida encerrada.
 - Teste por teclado em viewport útil de 390 pixels: abertura focou Jogadores; Shift+Tab retornou a Mais; Tab avançou novamente; Escape fechou o painel e devolveu o foco a Mais. Largura de conteúdo igual a 390 pixels.
