@@ -8,8 +8,13 @@ export function substituirNoJogo(jogo:Partida,lado:Lado,sai:string,entra:string,
   if(!jogo[campo].includes(sai))throw Error('O jogador já não está nesta escalação.');
   if(sai===entra)return jogo;
   if(!presentes.includes(entra))throw Error('Confirme a presença de quem vai entrar.');
-  if([...jogo.atletasA,...jogo.atletasB].includes(entra))throw Error('Esse jogador já está nesta partida.');
+  if(jogo[campo].includes(entra))throw Error('Esse jogador já está neste time.');
   if(jogo.golsPorAtleta[sai])throw Error('Este jogador tem gols registrados. Corrija a autoria antes de substituir sua escalação.');
+  const outro=lado==='A'?'atletasB':'atletasA', outroGoleiro=lado==='A'?'goleiroB':'goleiroA';
+  if(jogo[outro].includes(entra)) {
+    if(jogo.golsPorAtleta[entra])throw Error('O outro jogador tem gols registrados. Corrija a autoria antes da troca.');
+    return {...jogo,[campo]:jogo[campo].map(id=>id===sai?entra:id),[outro]:jogo[outro].map(id=>id===entra?sai:id),[keeper]:jogo[keeper]===sai?entra:jogo[keeper],[outroGoleiro]:jogo[outroGoleiro]===entra?sai:jogo[outroGoleiro]};
+  }
   const gols={...jogo.golsPorAtleta};delete gols[sai];
   return {...jogo,[campo]:jogo[campo].map(id=>id===sai?entra:id),[keeper]:jogo[keeper]===sai?entra:jogo[keeper],golsPorAtleta:gols};
 }
