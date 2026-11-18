@@ -409,7 +409,7 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
         {[...rodada.jogos].sort((a,b) => a.numero-b.numero).map(game => <div className="egc7-game" key={game.id}>
           <div className="egc7-game-info"><span className="egc7-game-caption">JOGO {String(game.numero).padStart(2,'0')} · {game.status==='encerrada' ? 'Encerrado' : 'Em edição'}</span><strong>{game.timeA} <span>{game.golsA} × {game.golsB}</span> {game.timeB}</strong></div>
           <div className="egc7-game-actions">
-            <button type="button" className="egc7-edit" onClick={() => abrirEditor(game.id)} aria-label={`Abrir súmula do jogo ${game.numero}`}><ClipboardList size={19}/> {game.status === 'encerrada' ? 'Ver jogo' : 'Editar'}</button>
+            <button type="button" className="egc7-edit" onClick={() => abrirExpressa ? abrirExpressa(rodada.id,game.id) : abrirEditor(game.id)} aria-label={`Abrir súmula do jogo ${game.numero}`}><ClipboardList size={19}/> {game.status === 'encerrada' ? 'Ver jogo' : 'Editar'}</button>
             {game.status === 'rascunho' ? <button type="button" className="egc7-delete" onClick={() => excluir(game)} aria-label={`Excluir rascunho do jogo ${game.numero}`}><Trash2 size={19}/> Excluir</button> : <span className="egc7-closed">Encerrado: reabra para alterar</span>}
           </div>
         </div>)}
