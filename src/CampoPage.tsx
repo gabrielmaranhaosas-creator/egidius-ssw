@@ -1,19 +1,15 @@
-import { jornadaSabado } from './JornadaSabado';
-import { normalizarBusca } from './Busca';
-import { usePapel } from './Permissoes';
+import type { FormEvent } from 'react';
 import { useState } from 'react';
-import type { ChangeEvent } from 'react';
-import {
-  ArrowRight, CalendarDays, ChevronDown, ChevronRight, ClipboardList,
-  Plus, Search, Shield, Target, Trophy, Trash2, Undo2, UsersRound, X, Check, ArrowUpRight,
-} from 'lucide-react';
-import { atualizarDados, dataFormatada, desfazerAcao, historicoAcoes, useDadosSSW } from './SSWStore';
-import { checkInCentral, retirarChegada, rodadaCentral, statusRodada, ultimosJogos } from './CampoRules';
-import { atletaEmUso } from './QuickActions';
-import './CampoPage.css';
-
+import { ArrowRight, CalendarDays, ChevronRight, ClipboardList, Plus, Shield, UsersRound } from 'lucide-react';
+import { atualizarDados, dataFormatada, novoId, proximoSabado, useDadosSSW } from './SSWStore';
+import { rodadaCentral, statusRodada, ultimosJogos } from './CampoRules';
+import { jornadaSabado } from './JornadaSabado';
+import { prepararSabado } from './InicioRules';
+import { usePapel } from './Permissoes';
 import type { CampoDestino } from './CampoRules';
 export type { CampoDestino } from './CampoRules';
+import './CampoPage.css';
+import './styles/ssw-inicio-celular.css';
 
 export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   abrir: (destino: CampoDestino, rodadaId?: string, partidaId?: string) => void;
@@ -21,225 +17,53 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   rodadaId: string;
   onRodadaChange: (id: string) => void;
 }) {
-  const dados = useDadosSSW();
-  const [busca, setBusca] = useState('');
-  const [abaChegada, setAbaChegada] = useState<'faltam' | 'presentes'>('faltam');
-  const [mostraPresencas, setMostraPresencas] = useState(false);
-  const [mostraTodos, setMostraTodos] = useState(false);
-  const [mostraResultados, setMostraResultados] = useState(false);
-  const [mostraOpcoes, setMostraOpcoes] = useState(false);
-  const [mensagem, setMensagem] = useState('');
-  const [erro, setErro] = useState('');
-  const rodada = rodadaCentral(dados, rodadaId);
-  const progresso = statusRodada(rodada, dados.jogadores);
-  const jornada = jornadaSabado(rodada, dados);
-  const consulta = usePapel() === 'viewer';
-  const precisaCadastro = dados.jogadores.length === 0;
-  const jogos = ultimosJogos(rodada);
-  const historico = historicoAcoes();
-
-  // Busca atravessa as duas listas; a ordem de chegada oficial não é recalculada.
-  const presentes = rodada?.presencas ?? [];
-  const buscaAtiva = busca.trim().length > 0;
-  const jogadores = dados.jogadores.filter(j =>
-    normalizarBusca(j.nome).includes(normalizarBusca(busca))
-    && (buscaAtiva || (abaChegada === 'presentes' ? presentes.includes(j.id) : !presentes.includes(j.id)))
-  ).sort((a, b) => {
-    const posA = presentes.indexOf(a.id), posB = presentes.indexOf(b.id);
-    if (abaChegada === 'presentes' && !buscaAtiva) return posA - posB;
-    if (posA === -1 && posB !== -1) return -1;
-    if (posB === -1 && posA !== -1) return 1;
-    return a.nome.localeCompare(b.nome, 'pt-BR');
-  });
-  const visiveis = mostraTodos || buscaAtiva ? jogadores : jogadores.slice(0, 8);
-  const faltam = dados.jogadores.length - presentes.length;
-
-  function trocarRodada(evento: ChangeEvent<HTMLSelectElement>) {
-    onRodadaChange(evento.target.value);
-    setBusca('');
-    setMostraTodos(false);
-    setAbaChegada('faltam');
-    setMostraPresencas(false);
-    setMostraResultados(false);
-    setMensagem('');
-    setErro('');
+  const dados=useDadosSSW(), rodada=rodadaCentral(dados,rodadaId);
+  const resumo=statusRodada(rodada,dados.jogadores), jornada=jornadaSabado(rodada,dados);
+  const consulta=usePapel()==='viewer';
+  const [criando,setCriando]=useState(false), [data,setData]=useState(proximoSabado);
+  const [erro,setErro]=useState(''), [todos,setTodos]=useState(false);
+  const jogos=ultimosJogos(rodada), visiveis=todos?jogos:jogos.slice(0,3);
+  function ir(destino:CampoDestino){abrir(destino,rodada?.id);}
+  function continuar(){
+    if(jornada.tipo==='sumula')abrirExpressa(rodada?.id,jornada.jogoId);
+    else if(jornada.tipo==='chegadas')ir('presencas');
+    else ir(jornada.destino);
   }
-  function ir(destino: CampoDestino, partidaId?: string) {
-    abrir(destino, rodada?.id, partidaId);
+  function criar(event:FormEvent){
+    event.preventDefault();if(consulta)return;
+    try{
+      const resultado=prepararSabado(dados,data,novoId());
+      atualizarDados(()=>resultado.dados,'criação de sábado pelo Início');
+      onRodadaChange(resultado.id);setCriando(false);setErro('');
+      abrir(dados.jogadores.length?'presencas':'cadastro',resultado.id);
+    }catch(e){setErro(e instanceof Error?e.message:'Não foi possível criar o sábado.');}
   }
-  function checkin(jogadorId: string) {
-    if (!rodada || rodada.presencas.includes(jogadorId)) return;
-    try {
-      atualizarDados(d => checkInCentral(d, rodada.id, jogadorId), 'chegada registrada na Central');
-      const nome = dados.jogadores.find(j => j.id === jogadorId)?.nome ?? 'Jogador';
-      setMensagem(`${nome}: presença registrada. Confira “Salvo no servidor”.`);
-      setErro('');
-      setBusca('');
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível registrar a chegada.');
-    }
-  }
-  function retirar(jogadorId: string) {
-    if (!rodada || !rodada.presencas.includes(jogadorId)) return;
-    const nome = dados.jogadores.find(j => j.id === jogadorId)?.nome ?? 'Jogador';
-    if (atletaEmUso(rodada, jogadorId)) {
-      setErro(`${nome} está em um time ou jogo. Para corrigir, ajuste primeiro a escalação.`);
-      return;
-    }
-    if (!window.confirm(`Retirar a presença de ${nome} deste sábado?\n\nAs outras chegadas manterão sua ordem. Você poderá desfazer a ação nesta aba.`)) return;
-    try {
-      atualizarDados(d => retirarChegada(d, rodada.id, jogadorId), 'correção de presença na Central');
-      setMensagem(`${nome}: presença retirada. As outras chegadas foram preservadas.`);
-      setErro('');
-      setBusca('');
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível retirar a presença.');
-    }
-  }
-  function alternarChegadas() {
-    const abrir = !mostraPresencas;
-    setMostraPresencas(abrir);
-    setErro('');
-    if (abrir) window.requestAnimationFrame(() =>
-      document.getElementById('ssw-chegadas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }
-  function desfazer() {
-    try {
-      const acao = desfazerAcao();
-      setMensagem(`Ação desfeita: ${acao}.`);
-      setErro('');
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Não foi possível desfazer.');
-    }
-  }
-  function verResultados() {
-    setMostraResultados(true);
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => document.getElementById('ssw-resultados')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-    });
-  }
-
-  return <div className="campo-page campo-page--simples">
-    <section className="matchday-hero" aria-labelledby="matchday-title">
-      <div className="matchday-hero-copy">
-        <span className="matchday-eyebrow"><span/> SÁBADO SHOW · NOSSO FUTEBOL</span>
-        <h1 id="matchday-title">{jornada.titulo}</h1>
-        <p>{jornada.texto}</p>
-        <button className="matchday-primary" type="button" onClick={() => {
-          if(jornada.tipo === 'sumula') abrirExpressa(rodada?.id,jornada.jogoId);
-          else if(jornada.tipo === 'chegadas') {if(!mostraPresencas)alternarChegadas();else document.getElementById('ssw-chegadas')?.scrollIntoView({behavior:'smooth',block:'start'});}
-          else ir(jornada.destino);
-        }}>{jornada.acao}<ArrowUpRight size={21} aria-hidden="true"/></button>
-        <span className="matchday-hero-note"><Shield size={15} aria-hidden="true"/> Você escolhe os times. O histórico fica preservado.</span>
-      </div>
-      <section className="matchday-round" aria-label="Sábado selecionado">
-        <label htmlFor="matchday-round-select"><CalendarDays size={18} aria-hidden="true"/> SÁBADO EM FOCO</label>
-        {dados.rodadas.length ? <select id="matchday-round-select" aria-label="Selecionar sábado" value={rodada?.id ?? ''} onChange={trocarRodada}>
-          {[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)).map(r=><option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}
-        </select> : <p>Nenhum sábado cadastrado.</p>}
-        <div className="matchday-stats" aria-label="Resumo do sábado">
-          <div><strong>{String(progresso.presentes).padStart(2,'0')}</strong><span>presentes</span></div>
-          <div><strong>{String(progresso.timesCompletos).padStart(2,'0')}</strong><span>times completos</span></div>
-          <div><strong>{String(progresso.encerrados).padStart(2,'0')}</strong><span>jogos encerrados</span></div>
-        </div>
-        <button type="button" className="matchday-date-link" onClick={()=>ir('rodadas')}>Criar outro sábado <Plus size={17}/></button>
+  return <div className="campo-page inicio-celular">
+    <header className="inicio-cabecalho"><span>SÁBADO SHOW</span><h1>Vamos jogar.</h1></header>
+    <section className="inicio-data" aria-label="Sábado selecionado">
+      {dados.rodadas.length>0 && <label><CalendarDays size={20} aria-hidden="true"/><span>Qual sábado?</span><select aria-label="Selecionar sábado" value={rodada?.id??''} onChange={e=>{onRodadaChange(e.target.value);setTodos(false);setCriando(false);setErro('');}}>{[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)).map(r=><option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}</select></label>}
+      {rodada && <div className="inicio-numeros" aria-label="Resumo do sábado"><span><strong>{resumo.presentes}</strong> presentes</span><span><strong>{resumo.timesCompletos}</strong> times completos</span><span><strong>{resumo.encerrados}</strong> encerrados</span></div>}
+      {(!rodada||criando) ? <form onSubmit={criar} className="inicio-criar" aria-label="Criar sábado">
+        <h2>{rodada?'Novo sábado':'Seu primeiro sábado'}</h2><p>Escolha a data para começar. Depois, cadastre os jogadores e marque as presenças.</p>
+        <label htmlFor="inicio-data-sabado">Data do sábado</label><input id="inicio-data-sabado" type="date" value={data} required onChange={e=>{setData(e.target.value);setErro('');}}/>
+        {erro && <p role="alert" className="campo-error">{erro}</p>}
+        <button type="submit" className="inicio-principal" disabled={consulta}>Criar sábado e continuar <ArrowRight size={20}/></button>
+        {rodada && <button type="button" onClick={()=>{setCriando(false);setErro('');}}>Cancelar</button>}
+      </form> : <button type="button" className="inicio-outra-data" disabled={consulta} onClick={()=>setCriando(true)}><Plus size={17}/> Novo sábado</button>}
+    </section>
+    {rodada && <>
+      {!consulta && <section className="inicio-continuar" aria-label="Próximo passo"><span>AGORA</span><h2>{jornada.titulo}</h2><p>{jornada.texto}</p><button type="button" className="inicio-principal" onClick={continuar}>{jornada.acao}<ArrowRight size={21}/></button></section>}
+      {consulta && <p>Você está no modo consulta. A organização registra as alterações.</p>}
+      <nav className="inicio-atalhos" aria-label="Organizar o sábado">
+        <button type="button" onClick={()=>ir(dados.jogadores.length?'presencas':'cadastro')}><UsersRound size={23}/><span><strong>Presenças</strong><small>{dados.jogadores.length?`${resumo.presentes} de ${dados.jogadores.length} com presença`:'Cadastrar os primeiros jogadores'}</small></span><ChevronRight size={20}/></button>
+        <button type="button" onClick={()=>ir('times')}><Shield size={23}/><span><strong>Montar times</strong><small>Escolha os jogadores e faça as trocas</small></span><ChevronRight size={20}/></button>
+        <button type="button" onClick={()=>abrirExpressa(rodada.id)}><ClipboardList size={23}/><span><strong>Partidas e súmulas</strong><small>{resumo.rascunhos?`${resumo.rascunhos} em edição`:'Criar jogo, marcar gols e encerrar'}</small></span><ChevronRight size={20}/></button>
+      </nav>
+      <section className="inicio-jogos" aria-label="Jogos deste sábado"><h2>Jogos deste sábado</h2>
+        {!jogos.length && <p>Nenhum jogo criado. Monte os times para começar.</p>}
+        {visiveis.map(j=><button type="button" key={j.id} onClick={()=>abrirExpressa(rodada.id,j.id)} aria-label={`Abrir jogo ${j.numero}: ${j.timeA} ${j.golsA} a ${j.golsB} ${j.timeB}`}><span className="inicio-jogo-meta">Jogo {j.numero} · {j.status==='encerrada'?'Encerrado':'Em edição'}</span><span className="inicio-placar"><span>{j.timeA}</span><strong>{j.golsA} × {j.golsB}</strong><span>{j.timeB}</span></span><ChevronRight size={20}/></button>)}
+        {jogos.length>3 && <button type="button" className="inicio-ver-todos" onClick={()=>setTodos(!todos)}>{todos?'Mostrar menos':`Ver os ${jogos.length} jogos`}</button>}
       </section>
-    </section>
-
-    <nav className="matchday-journey" aria-label="Jornada do sábado">
-      {[
-        {titulo:'Chegadas',texto:`${progresso.presentes} presentes`,Icon:UsersRound,feito:progresso.presentes>=14,acao:()=>rodada&&!precisaCadastro?alternarChegadas():ir(precisaCadastro&&rodada?'cadastro':'rodadas')},
-        {titulo:'Times',texto:'Escolha manual',Icon:Shield,feito:progresso.confrontoPronto,acao:()=>ir(rodada?'times':'rodadas')},
-        {titulo:'Partidas',texto:progresso.rascunhos?`${progresso.rascunhos} em edição`:'Goleiros e placar',Icon:Target,feito:progresso.encerrados>0&&!progresso.rascunhos,acao:()=>rodada?abrirExpressa(rodada.id):ir('rodadas')},
-        {titulo:'Resultados',texto:`${progresso.encerrados} encerrados`,Icon:Trophy,feito:false,acao:verResultados},
-      ].map((etapa,i)=><button type="button" key={etapa.titulo} onClick={etapa.acao} aria-current={jornada.etapa===i?'step':undefined} className={etapa.feito?'is-complete':''}>
-        <span className="matchday-step-number">{etapa.feito?<Check size={18} aria-label="Pronto"/>:String(i+1).padStart(2,'0')}</span>
-        <span><strong>{etapa.titulo}</strong><small>{etapa.texto}</small></span><etapa.Icon size={21} aria-hidden="true"/>
-      </button>)}
-    </nav>
-    {consulta && <p className="ux-draft-note">Modo consulta: você pode acompanhar os sábados e resultados. Alterações exigem acesso de operação.</p>}
-    {mostraPresencas && <section id="ssw-chegadas" className="campo-simple-panel" aria-label="Marcar chegada de jogadores">
-      <h2>Quem chegou?</h2>
-      <p>Toque em <strong>Chegou</strong> para marcar. Se errar, abra <strong>Já chegaram</strong> e use <strong>Retirar</strong>.</p>
-      <div className="campo-chegada-tabs" role="group" aria-label="Filtrar jogadores por chegada">
-        <button type="button" className={abaChegada === 'faltam' ? 'is-active' : ''} aria-pressed={abaChegada === 'faltam'} onClick={() => {setAbaChegada('faltam');setBusca('');setMostraTodos(false);}}>Faltam chegar <span>{faltam}</span></button>
-        <button type="button" className={abaChegada === 'presentes' ? 'is-active' : ''} aria-pressed={abaChegada === 'presentes'} onClick={() => {setAbaChegada('presentes');setBusca('');setMostraTodos(false);}}>Já chegaram <span>{presentes.length}</span></button>
-      </div>
-      {erro && <div className="campo-error" role="alert">{erro}</div>}
-      {mensagem && <div className="campo-message" role="status">{mensagem}</div>}
-      <div className="campo-chegada-search-wrap">
-        <label className="campo-search"><Search size={22} aria-hidden="true"/>
-          <input type="search" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar jogador pelo nome" aria-label="Buscar jogador pelo nome"/>
-        </label>
-        {busca && <button type="button" className="campo-chegada-clear" onClick={() => setBusca('')}><X size={18}/> Limpar</button>}
-      </div>
-      <div className="campo-player-list campo-chegada-list" aria-live="polite">
-        {visiveis.map(j => {
-          const posicao = presentes.indexOf(j.id);
-          const protegido = posicao >= 0 && rodada ? atletaEmUso(rodada, j.id) : false;
-          return <div key={j.id} className={`campo-player campo-chegada-item ${posicao >= 0 ? 'campo-player--present' : ''}`}>
-            <span className="campo-player-avatar" aria-hidden="true">{j.nome.trim().slice(0, 1).toUpperCase()}</span>
-            <span className="campo-chegada-name"><strong>{j.nome}</strong>
-              {posicao >= 0 && <small>Chegada #{posicao + 1}{protegido ? ' · Já está escalado' : ''}</small>}
-            </span>
-            {posicao < 0
-              ? <button type="button" className="campo-chegada-add" disabled={consulta} onClick={() => checkin(j.id)} aria-label={`Marcar chegada de ${j.nome}`}><Plus size={19}/> Chegou</button>
-              : <button type="button" className="campo-chegada-remove" disabled={consulta || protegido} title={protegido ? 'Remova primeiro dos times e súmulas para alterar a chegada' : undefined} onClick={() => retirar(j.id)} aria-label={protegido ? `${j.nome}: presença protegida porque já está escalado` : `Retirar presença de ${j.nome}`}>
-                {protegido ? <><Shield size={18}/> Escalado</> : <><Trash2 size={18}/> Retirar</>}
-                </button>}
-          </div>;
-        })}
-        {!visiveis.length && <p className="campo-empty">{precisaCadastro ? 'Cadastre o primeiro jogador em Organizar sábado para começar.' : buscaAtiva ? 'Nenhum jogador encontrado. Tente outro nome.' : abaChegada === 'faltam' ? 'Todos os jogadores cadastrados já chegaram.' : 'Ainda não há chegadas registradas.'}</p>}
-      </div>
-      {!mostraTodos && !buscaAtiva && jogadores.length > 8 &&
-        <button type="button" className="campo-inline-action" onClick={() => setMostraTodos(true)}>Mostrar todos ({jogadores.length}) <ChevronDown size={19}/></button>}
-      {abaChegada === 'presentes' && <p className="campo-chegada-help">A opção <strong>Retirar</strong> só aparece para quem ainda não está escalado. As outras presenças ficam protegidas.</p>}
-      <div className="campo-simple-checkin-actions">
-        <button type="button" className="campo-undo" disabled={!historico.desfazer} onClick={desfazer}><Undo2 size={20}/> Desfazer</button>
-        <button type="button" className="campo-inline-action" onClick={() => ir('presencas')}>Lista completa <ArrowRight size={19}/></button>
-      </div>
-    </section>}
-
-    <section className="matchday-quick-actions" aria-label="Ações do sábado">
-      <div><span className="matchday-section-label">NO SEU RITMO</span><h2>O sábado continua.</h2><p>Volte a qualquer etapa sem perder os jogos anteriores.</p></div>
-      <button type="button" onClick={()=>rodada&&!precisaCadastro?alternarChegadas():ir(precisaCadastro&&rodada?'cadastro':'rodadas')} aria-expanded={mostraPresencas} aria-controls="ssw-chegadas"><UsersRound size={23}/><span><strong>Registrar chegada</strong><small>Novos jogadores e presenças</small></span><ChevronRight size={20}/></button>
-      <button type="button" onClick={()=>ir(rodada?'times':'rodadas')}><Shield size={23}/><span><strong>Montar ou revisar times</strong><small>Você escolhe quem joga junto</small></span><ChevronRight size={20}/></button>
-      <button type="button" onClick={()=>rodada?abrirExpressa(rodada.id):ir('rodadas')}><ClipboardList size={23}/><span><strong>Abrir súmula</strong><small>Gols, goleiros e encerramento</small></span><ChevronRight size={20}/></button>
-    </section>
-
-    <section id="ssw-resultados" className="campo-simple-details">
-      <button type="button" className="campo-simple-details-toggle" aria-expanded={mostraResultados} aria-controls="ssw-lista-jogos" onClick={() => setMostraResultados(v => !v)}>
-        <span><ClipboardList size={23}/><strong>Placares do sábado</strong></span><ChevronDown size={22} className={mostraResultados ? 'is-open' : ''}/>
-      </button>
-      {mostraResultados && <div id="ssw-lista-jogos" className="campo-simple-results">
-        {jogos.length ? jogos.map(j => <button type="button" key={j.id} className="campo-simple-game" onClick={() => ir('partidas', j.id)}>
-          <span className="campo-simple-game-number">Jogo {j.numero} · {j.status === 'encerrada' ? 'Encerrado' : 'Em edição'}</span>
-          <span className="campo-simple-game-score"><span>{j.timeA}</span><strong>{j.golsA} × {j.golsB}</strong><span>{j.timeB}</span></span>
-          <span className="campo-simple-game-link">Abrir detalhes <ArrowRight size={18}/></span>
-        </button>) : <p className="campo-empty">Ainda não há jogos neste sábado.</p>}
-        <button type="button" className="campo-outline-action" onClick={() => ir('partidas')}>Ver todas as súmulas <ArrowRight size={19}/></button>
-      </div>}
-    </section>
-
-    <section className="campo-simple-details">
-      <button type="button" className="campo-simple-details-toggle" aria-expanded={mostraOpcoes} aria-controls="ssw-opcoes-sabado" onClick={() => setMostraOpcoes(v => !v)}>
-        <span><CalendarDays size={23}/><strong>Organizar sábado</strong></span><ChevronDown size={22} className={mostraOpcoes ? 'is-open' : ''}/>
-      </button>
-      {mostraOpcoes && <div id="ssw-opcoes-sabado" className="campo-simple-extra">
-        <div className="campo-operacao-proximo">
-          <small>PRÓXIMO PASSO</small><strong>{progresso.passo}</strong>
-          <button type="button" onClick={() => ir(progresso.destino)}>Continuar <ArrowRight size={19}/></button>
-        </div>
-        <ul className="campo-operacao-etapas" aria-label="Conferência das etapas do sábado">
-          <li><button type="button" onClick={() => ir('cadastro')}><span><strong>Jogadores</strong><small>{dados.jogadores.length} cadastrados · adicionar um jogador</small></span><Plus size={20}/></button></li>
-          <li><button type="button" onClick={() => ir('presencas')}><span><strong>Presenças</strong><small>{progresso.presentes} jogadores com chegada registrada</small></span><UsersRound size={20}/></button></li>
-          <li><button type="button" onClick={() => ir('times')}><span><strong>Times</strong><small>{progresso.timesCompletos} completos, com 7 jogadores presentes cada</small></span><Shield size={20}/></button></li>
-          <li><button type="button" onClick={() => ir('partidas')}><span><strong>Súmulas</strong><small>{progresso.rascunhos} em edição · {progresso.encerrados} encerradas</small></span><ClipboardList size={20}/></button></li>
-          <li><button type="button" onClick={verResultados}><span><strong>Resultados</strong><small>{progresso.encerrados ? 'Confira os placares e a situação de cada jogo' : 'Encerre uma partida para consolidar seu resultado'}</small></span><Trophy size={20}/></button></li>
-        </ul>
-        <button type="button" onClick={() => ir('rodadas')}>Criar ou escolher outro sábado <ArrowRight size={19}/></button>
-      </div>}
-    </section>
-    <p className="campo-simple-save-note">Confira “Salvo no servidor” antes de fechar o aplicativo.</p>
+    </>}
   </div>;
 }

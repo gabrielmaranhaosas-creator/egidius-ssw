@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {load}=require('./carregar-regras.cjs');const {prepararSabado}=load('InicioRules');
+test('primeiro sábado nasce vazio e não modifica a base anterior',()=>{const d={versao:5,jogadores:[],rodadas:[]};const r=prepararSabado(d,'2026-11-21','novo');assert.equal(d.rodadas.length,0);assert.deepEqual(JSON.parse(JSON.stringify(r.dados.rodadas)),[{id:'novo',data:'2026-11-21',presencas:[],equipes:[],jogos:[]}]);});
+test('voltar à mesma data preserva jogos e jogadores sem duplicar',()=>{const d={versao:5,jogadores:[{id:'a',nome:'A'}],rodadas:[{id:'antiga',data:'2026-11-21',presencas:['a'],equipes:[],jogos:[]}]};const r=prepararSabado(d,'2026-11-21','novo');assert.equal(r.dados,d);assert.equal(r.id,'antiga');assert.equal(r.dados.rodadas.length,1);});
+test('recusa dia errado e identificador duplicado sem gravar',()=>{const d={versao:5,jogadores:[],rodadas:[{id:'id',data:'2026-11-14',presencas:[],equipes:[],jogos:[]}]};assert.throws(()=>prepararSabado(d,'2026-11-20','novo'),/sábado/);assert.throws(()=>prepararSabado(d,'2026-11-21','id'),/identificar/);assert.equal(d.rodadas.length,1);});

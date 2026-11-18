@@ -1,3 +1,4 @@
+import { geracaoAtual,geracaoLocal,guardarGeracao } from './GeracaoDados';
 import { RevisarConflitos } from './RevisarConflitos';
 import { FutebolPublico } from './FutebolPublico';
 import type { Mescla } from './MesclarEstados';
@@ -14,10 +15,10 @@ import type { DadosSSW } from './SSWStore';
 import './SyncGate.css';
 import { definirOperadorMontagem, podeSairDaMontagem, useMontagensPendentes } from './MontagemDrafts';
 
-type Remote = { revision: number; data: DadosSSW };
+type Remote = { revision: number; generation?:number; data: DadosSSW };
 type View = 'review'|'loading'|'offline'|'closed'|'choice'|'ready'|'public';
 type Status = 'saved'|'sending'|'offline'|'conflict';
-type Connection = { revision: number; lastSaved: string; csrf: string; pending: boolean; blocked: boolean; alive: boolean };
+type Connection = { generation:number; revision: number; lastSaved: string; csrf: string; pending: boolean; blocked: boolean; alive: boolean };
 const empty = (d:DadosSSW) => !d.jogadores.length && !d.rodadas.length;
 // A API normaliza os campos dos objetos; igualdade sem depender da ordem das chaves.
 function stableStringify(value:unknown):string {
@@ -80,7 +81,7 @@ export function SyncGate({children}:{children:ReactNode}) {
     try {
       const update = await api<{revision:number}>('/state',{
         method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},
-        body: JSON.stringify({expected_revision:s.revision,data:JSON.parse(snap)}),
+        body: JSON.stringify({expected_revision:s.revision,expected_generation:s.generation,data:JSON.parse(snap)}),
       });
       // Nunca confirme como salvo aquilo que foi editado durante o request.
       s.revision = update.revision;
@@ -92,6 +93,7 @@ export function SyncGate({children}:{children:ReactNode}) {
       if (error.code===409) {
         try {
           const remoto=await api<Remote>('/state');
+          if(geracaoAtual(remoto.generation)!==s.generation){adotarReinicio(remoto,s.csrf,user.current);return;}
           const resultado=mesclarEstados(JSON.parse(s.lastSaved),obterDadosAtuais(),remoto.data);
           if(!resultado.data)throw new Error(`Edições simultâneas no mesmo registro: ${resultado.conflitos.join(', ')}.`);
           // A validação do store impede aplicar uma combinação esportiva inconsistente.
@@ -112,17 +114,25 @@ export function SyncGate({children}:{children:ReactNode}) {
   }
 
   function conectar(remote:Remote, csrf:string, nome:string) {
-    definirOperadorMontagem(nome);
-    session.current={revision:remote.revision,lastSaved:stableStringify(remote.data),csrf,pending:false,blocked:false,alive:true};
+    const generation=geracaoAtual(remote.generation);
+    guardarGeracao(generation);
+    definirOperadorMontagem(generation?`${nome}:geracao:${generation}`:nome);
+    session.current={generation:geracaoAtual(remote.generation),revision:remote.revision,lastSaved:stableStringify(remote.data),csrf,pending:false,blocked:false,alive:true};
     user.current=nome;setUsername(nome);setStatus('saved');setMessage('');
     setView('ready');
   }
+  function adotarReinicio(remote:Remote,csrf:string,nome:string){
+    if(session.current)session.current.alive=false;
+    adotarDadosDoServidor(remote.data);conectar(remote,csrf,nome);setRevisao(null);
+    setMessage('Base de testes reiniciada pela organização. Os registros atuais foram carregados.');
+  }
   function escolher(remote:Remote, csrf:string, nome:string) {
+    if(geracaoAtual(remote.generation)!==geracaoLocal()){adotarReinicio(remote,csrf,nome);return;}
     const local = obterDadosAtuais();
     if (stableStringify(local) === stableStringify(remote.data)) { conectar(remote,csrf,nome);return; }
     if (empty(local)) { adotarDadosDoServidor(remote.data);conectar(remote,csrf,nome);return; }
     setSelected(remote);user.current=nome;setUsername(nome);
-    session.current={revision:remote.revision,lastSaved:stableStringify(remote.data),csrf,pending:false,blocked:true,alive:true};
+    session.current={generation:geracaoAtual(remote.generation),revision:remote.revision,lastSaved:stableStringify(remote.data),csrf,pending:false,blocked:true,alive:true};
     setDecision(empty(remote.data)?'first':'divergent');setBackupConfirmed(false);setView('choice');
   }
   async function restoreSession() {
@@ -172,6 +182,7 @@ export function SyncGate({children}:{children:ReactNode}) {
       // Uma leitura iniciada antes de uma gravação não pode desfazer essa gravação.
       if (session.current!==s || !s.alive || stopped.current || s.pending || s.blocked
           || s.revision!==revisionAtStart || s.lastSaved!==savedAtStart) return;
+      if(geracaoAtual(remote.generation)!==s.generation){adotarReinicio(remote,s.csrf,user.current);return;}
       if (remote.revision<s.revision) return;
       if (stableStringify(obterDadosAtuais())!==s.lastSaved) {
         if (remote.revision!==s.revision) {
@@ -207,8 +218,8 @@ export function SyncGate({children}:{children:ReactNode}) {
     const local=obterDadosAtuais();
     try {
       const updated=await api<{revision:number}>('/state', {method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},
-        body:JSON.stringify({expected_revision:selected.revision,data:local})});
-      conectar({revision:updated.revision,data:local},s.csrf,user.current);
+        body:JSON.stringify({expected_revision:selected.revision,expected_generation:geracaoAtual(selected.generation),data:local})});
+      conectar({revision:updated.revision,generation:selected.generation,data:local},s.csrf,user.current);
     }catch(e){setMessage((e as Error).message);if((e as Error & {code?:number}).code===409) setDecision('divergent');}
   }
   async function resolverConflito() {
@@ -217,6 +228,7 @@ export function SyncGate({children}:{children:ReactNode}) {
     exportarBackup();
     try {
       const remote=await api<Remote>('/state');
+      if(geracaoAtual(remote.generation)!==s.generation){adotarReinicio(remote,s.csrf,user.current);return;}
       const mescla=mesclarEstados(JSON.parse(s.lastSaved),obterDadosAtuais(),remote.data);
       setRevisao({mescla,remoto:remote});setView('review');return;
     }catch(e){setMessage((e as Error).message);}
@@ -228,7 +240,7 @@ export function SyncGate({children}:{children:ReactNode}) {
     try {await api('/auth/logout',{method:'POST',headers:{'X-CSRF-Token':s.csrf}});}catch{ /* servidor pode estar offline */ }
     s.alive=false;session.current=null;setView('closed');setStatus('saved');
   }
-  if(view==='review'&&revisao)return <RevisarConflitos mescla={revisao.mescla} cancelar={()=>setView('ready')} salvar={async data=>{const s=session.current;if(!s)throw Error('Sessão expirada. Abra novamente o EGIDIUS.');const result=await api<{revision:number}>('/state',{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:JSON.stringify({expected_revision:revisao.remoto.revision,data})});adotarDadosDoServidor(data);conectar({revision:result.revision,data},s.csrf,user.current);setRevisao(null);}}/>;
+  if(view==='review'&&revisao)return <RevisarConflitos mescla={revisao.mescla} cancelar={()=>setView('ready')} salvar={async data=>{const s=session.current;if(!s)throw Error('Sessão expirada. Abra novamente o EGIDIUS.');const result=await api<{revision:number}>('/state',{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:JSON.stringify({expected_revision:revisao.remoto.revision,expected_generation:geracaoAtual(revisao.remoto.generation),data})});adotarDadosDoServidor(data);conectar({revision:result.revision,generation:revisao.remoto.generation,data},s.csrf,user.current);setRevisao(null);}}/>;
   if (view==='ready') return <>
     <div className={`sync-banner sync-banner--${status}`} role="status">
       {status==='saved'?<ShieldCheck size={20}/>:status==='sending'?<RefreshCw size={20}/>:<CloudOff size={20}/>}

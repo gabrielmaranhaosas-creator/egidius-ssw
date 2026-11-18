@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Request, Response, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.orm import Session as DbSession
 from .db import session_factory, User, Session, State, History, AthleteProfile, UserRole, OperationAudit, InviteAccess, utcnow
 from .security import token_hash, expires_at, verify_password, hash_password
@@ -291,16 +291,22 @@ def create_app(database_url: str | None = None) -> FastAPI:
         response.delete_cookie(COOKIE_NAME, path='/api')
         return {'ok': True}
 
+    def state_generation(db):
+        return db.scalar(select(func.max(OperationAudit.id)).where(OperationAudit.action == 'test-data-reset')) or 0
+
     @app.get('/api/state')
     def get_state(sess: Session = Depends(session_auth), db: DbSession = Depends(get_db)):
-        row = db.get(State, 1)
-        return JSONResponse({'revision': row.revision, 'data': json.loads(row.payload)}, headers={'Cache-Control': 'no-store'})
+        generation = select(func.max(OperationAudit.id)).where(OperationAudit.action == 'test-data-reset').scalar_subquery()
+        row, current_generation = db.execute(select(State, generation).where(State.id == 1)).one()
+        return JSONResponse({'revision': row.revision, 'generation': current_generation or 0, 'data': json.loads(row.payload)}, headers={'Cache-Control': 'no-store'})
 
     @app.put('/api/state')
     async def put_state(request: Request, sess: Session = Depends(check_csrf), db: DbSession = Depends(get_db)):
         content = await json_bounded(request)
         try: incoming = Atualizacao.model_validate(content)
         except ValidationError as exc: raise HTTPException(422, 'Estrutura de dados inválida. Corrija o cadastro e tente novamente.') from exc
+        if incoming.expected_generation != state_generation(db):
+            raise HTTPException(409,'A base de testes foi reiniciada. Recarregue o EGIDIUS antes de continuar.')
         current=db.get(State,1)
         if current.revision != incoming.expected_revision:raise HTTPException(409,'Outra sessão já alterou os dados. O envio foi bloqueado.')
         old=json.loads(current.payload);new=incoming.data.model_dump()
