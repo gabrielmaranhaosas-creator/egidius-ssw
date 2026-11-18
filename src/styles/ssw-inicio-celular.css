@@ -52,3 +52,6 @@
 .inicio-numeros{gap:8px 12px;font-size:12px}
 .inicio-atalhos>button{min-height:74px;padding:14px}
 .inicio-atalhos small{font-size:13px}}
+
+/* A barra de rolagem pode reduzir a área útil de uma tela de 320 px. */
+body:has(.inicio-celular) { min-width: 0; }
