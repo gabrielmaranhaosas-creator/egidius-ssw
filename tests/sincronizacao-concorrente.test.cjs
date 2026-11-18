@@ -10,11 +10,13 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const pending = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise, resolve}; };
 
 // Executa o componente verdadeiro com hooks, rede e armazenamento controlados.
-async function abrir({publico=false}={}) {
+async function abrir({publico=false,initialData,initialGeneration=0,remoteGeneration=0}={}) {
   const states=[], refs=[], effects=[], events=new Map();
   let cursor=0, effectQueue=[], local={versao:5,jogadores:[],rodadas:[]};
+  if(initialData)local=copy(initialData);
+  const geracao=require('./carregar-regras.cjs').criarCarregador().load('GeracaoDados');geracao.guardarGeracao(initialGeneration);
   let observer, poll, component;
-  const remote={revision:1,data:{versao:5,jogadores:[{id:'j1',nome:'Primeiro teste'}],rodadas:[]}};
+  const remote={revision:1,generation:remoteGeneration,data:{versao:5,jogadores:[{id:'j1',nome:'Primeiro teste'}],rodadas:[]}};
   let responder=async (_url, options) => options?.method==='PUT' ? {revision:2} : copy(remote);
   const React={
     useState(initial) { const id=cursor++; if (!(id in states)) states[id]=initial;
@@ -32,6 +34,7 @@ async function abrir({publico=false}={}) {
     setInterval(fn){poll=fn;return 1;},clearInterval(){},setTimeout(){return 1;},
     addEventListener(name,fn){events.set(name,fn);},removeEventListener(name){events.delete(name);}};
   const requireMock=name=>{
+    if(name==='./GeracaoDados')return geracao;
     if(name==='react')return React;
     if(name==='react/jsx-runtime')return {jsx,jsxs:jsx,Fragment:'fragment'};
     if(name==='lucide-react')return new Proxy({}, {get:()=>()=>null});
@@ -56,7 +59,7 @@ async function abrir({publico=false}={}) {
   const execute=vm.runInThisContext('(function(require,module,exports,window,fetch,URL){'+result.outputText+'\n})',{filename:file});
   execute(requireMock,module,module.exports,window,async(url,options)=>{
     const payload=await responder(url,options);
-    return {ok:true,json:async()=>payload};
+    return {ok:!payload.__httpCode,status:payload.__httpCode||200,json:async()=>payload};
   },URL);
   function render(){cursor=0;component=module.exports.SyncGate({children:null});
     const next=effectQueue;effectQueue=[];for(const fn of next)fn();return component;}
@@ -129,4 +132,23 @@ test('tentar novamente confirma a conexão e não anuncia salvo quando a API con
   app.setResponder(async()=>copy(app.remote));
   button.props.onClick();await flush();
   assert.equal(app.states[4],'saved');
+});
+
+
+test('reinício no servidor invalida a cópia anterior do navegador antes de oferecer importação',async()=>{
+ const antigo={versao:5,jogadores:[{id:'antigo',nome:'Teste removido'}],rodadas:[]};
+ const app=await abrir({initialData:antigo,remoteGeneration:7});
+ assert.deepEqual(app.current(),app.remote.data);assert.equal(app.states[3],'ready');
+});
+test('reinício recebido em segundo plano adota a base nova sem mesclar dados antigos',async()=>{
+ const app=await abrir();app.remote.generation=8;app.remote.revision=9;app.remote.data={versao:5,jogadores:[],rodadas:[]};
+ app.poll();await flush();assert.deepEqual(app.current(),app.remote.data);assert.equal(app.states[4],'saved');
+});
+test('409 após reinício não recoloca edições da geração antiga e o novo envio usa a geração atual',async()=>{
+ const app=await abrir();const fresh={revision:10,generation:9,data:{versao:5,jogadores:[],rodadas:[]}};let puts=[];
+ app.setResponder(async(_url,options)=>{if(options?.method==='PUT'){puts.push(JSON.parse(options.body));return {__httpCode:409,detail:'Base reiniciada'};}return copy(fresh);});
+ app.edit({...app.current(),jogadores:[...app.current().jogadores,{id:'velho',nome:'Não voltar'}]});
+ await flush();await flush();assert.deepEqual(app.current(),fresh.data);assert.equal(puts.length,1);assert.equal(puts[0].expected_generation,0);
+ app.setResponder(async(_url,options)=>{if(options?.method==='PUT'){puts.push(JSON.parse(options.body));return {revision:11};}return copy(fresh);});
+ app.edit({versao:5,jogadores:[{id:'novo',nome:'Novo teste'}],rodadas:[]});await flush();assert.equal(puts[1].expected_generation,9);assert.equal(app.current().jogadores[0].id,'novo');
 });

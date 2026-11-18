@@ -114,6 +114,7 @@ class DadosSSW(Base):
         return self
 
 class Atualizacao(Base):
+    expected_generation: int = Field(default=0, ge=0)
     expected_revision: int = Field(ge=0)
     data: DadosSSW
 
