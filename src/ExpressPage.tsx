@@ -76,6 +76,7 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
   function encerrar(partida: Partida) {
     if (mostrarConferencia(partida)) { setErro(''); setMensagem(''); return; }
     if (!window.confirm(`Encerrar o Jogo ${String(partida.numero).padStart(2,'0')} (${partida.timeA} ${partida.golsA} × ${partida.golsB} ${partida.timeB})? Os rankings serão atualizados.`)) return;
+    setJogoId(partida.id);
     modificar(partida, `Jogo ${partida.numero} encerrado`, encerrarPartida);
   }
   function novoConfronto() {
@@ -185,6 +186,7 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
         {jogo.status === 'encerrada' && <p className="express-closed-note">Partida encerrada. Confira a sincronização no topo antes de sair.</p>}
         <p className="express-score-hint">Toque em <strong>+ Gol</strong> ao lado do jogador. O placar será atualizado automaticamente.</p>
         <SSWGoalPad
+          key={jogo.id}
           jogo={jogo}
           presentes={rodada?.presencas??[]}
           escolherGoleiro={(l,id)=>modificar(jogo,'Goleiro atualizado',j=>({...j,[l==='A'?'goleiroA':'goleiroB']:id||null}))}
