@@ -1,5 +1,4 @@
 import { normalizarBusca } from './Busca';
-import { definirDisponibilidade } from './Disponibilidade';
 import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -483,7 +482,6 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       </div>
     </div>
 
-    {etapa==='presencas' && rodada && rodada.presencas.length>0 && <details className="ux-maintenance"><summary>Quem saiu ou voltou? Disponibilidade para os próximos jogos</summary><div className="ux-access-list"><p>Marcar saída retira o jogador apenas da montagem futura. A presença do sábado e as partidas já criadas permanecem registradas. O retorno não o coloca automaticamente em um time.</p>{rodada.presencas.map(id=><label key={id}>{nomePorId.get(id)}<select aria-label={`Disponibilidade de ${nomePorId.get(id)}`} value={rodada.indisponiveis?.includes(id)?'saiu':'disponivel'} onChange={e=>{const livre=e.target.value==='disponivel';if(!livre&&!window.confirm(`Marcar saída de ${nomePorId.get(id)} e liberar sua vaga nos próximos jogos? As súmulas existentes ficam iguais.`))return;salvar(()=>atualizarDados(d=>definirDisponibilidade(d,rodada.id,id,livre),livre?'retorno de jogador':'saída de jogador'));}}><option value="disponivel">Disponível para jogar</option><option value="saiu">Saiu — presença preservada</option></select></label>)}</div></details>}
     {etapa==='presencas' && rodada && <div className="ux-stage-actions"><p>{rodada.presencas.length < 14 ? `Há ${rodada.presencas.length} presentes. Para uma partida, são necessários 14 jogadores.` : 'Presenças registradas. Agora distribua os jogadores nos times.'}</p><button type="button" disabled={!rodada.presencas.length} onClick={() => irParaEtapa('times')}>Continuar para os times <ChevronRight size={20}/></button></div>}
     {!rodada ? <div className="rounds-empty"><CalendarDays size={33}/><strong>Nenhum sábado registrado</strong><p>Crie a primeira rodada para organizar as súmulas.</p></div> : <>
       <div id="eg-team-board" key={rodada.id} hidden={etapa!=='times'}><TeamBoard rodada={rodada} jogadores={dados.jogadores} continuar={() => {setAviso('Times confirmados. Escolha o confronto para criar a partida.');irParaEtapa('confronto');}}/></div>
