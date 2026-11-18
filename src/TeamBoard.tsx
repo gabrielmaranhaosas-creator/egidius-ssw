@@ -2,8 +2,7 @@ import { historicoMontagemVazio, registrarMontagem, moverHistoricoMontagem, mont
 import { usePapel } from './Permissoes';
 import { normalizarBusca } from './Busca';
 import { useEffect, useState, useRef } from 'react';
-import type { ChangeEvent } from 'react';
-import { Check, LockKeyhole, Plus, Save, ShieldCheck, Trash2, UsersRound, RotateCcw, RotateCw, Shuffle, X, Search, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, RotateCw } from 'lucide-react';
 import type { EquipeRodada, Jogador, Rodada } from './SSWStore';
 import { atualizarDados, novoId } from './SSWStore';
 import { equipesBloqueadas } from './RoundRules';
@@ -11,6 +10,7 @@ import { distribuirPorChegadaAteSete, JOGADORES_POR_TIME } from './TimeRules';
 import { jogadoresPorChegada } from './CampoRules';
 import { assinaturaEquipes, atribuirJogador, copiarEquipes, criarRascunhoTimes, filtrarDistribuicao, proximoNomeTime, reconciliarRascunhoTimes, resumoMontagem, salvarMontagem } from './TeamBoardRules';
 import './styles/ssw-montagem-times.css';
+import './styles/ssw-operacao-direta.css';
 import { guardarMontagem, lerMontagem, limparMontagem, montagemPersistidaNoServidor } from './MontagemDrafts';
 import { trocarJogadores } from './TeamBoardRules';
 
@@ -28,7 +28,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
   const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState('todos');
+  const [filtro, setFiltro] = useState('disponiveis');
   const [historico, setHistorico] = useState(historicoMontagemVazio);
   const equipes = rascunho.equipes;
   const assinaturaAtual = assinaturaEquipes(rodada.equipes);
@@ -143,96 +143,30 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     } catch (error) { setErro(error instanceof Error ? error.message : 'Não foi possível salvar.'); }
   }
 
-  return <section className="team-board" aria-labelledby="team-board-title">
-    <div className="team-board-heading"><div className="team-board-heading-text">
-      <span className="team-board-kicker"><ShieldCheck size={18}/> PREPARAR OS PRÓXIMOS JOGOS</span>
-      <h3 id="team-board-title">Times do sábado</h3>
-      <p>Você escolhe quem joga em cada time. Use <strong>Escolher jogadores</strong> no time desejado e complete suas 7 vagas. Nenhum jogador é distribuído sem sua ação.</p>
-    </div><span className={`team-board-status ${bloqueadas ? 'team-board-status--locked' : !ajustesLocais && rodada.equipes.length ? 'team-board-status--saved' : ''}`}>
-      {bloqueadas ? <><LockKeyhole size={15}/> Protegidas</> : divergiu ? 'Revisão necessária' : ajustesLocais ? 'Ajustes por salvar' : rodada.equipes.length ? <><Check size={15}/> Salvas</> : 'Não definidas'}
-    </span></div>
-    {bloqueadas && <p className="team-board-help team-board-help--locked"><LockKeyhole size={18}/> A formação salva está protegida por jogos com resultados. Ajustes deste formulário não serão aplicados a esses jogos.</p>}
-    {divergiu && <div className="ssw-times-conflito" role="alert">
-      <strong>A formação salva mudou enquanto você montava os times.</strong>
-      <p>Seus ajustes locais foram mantidos neste formulário. Confira a formação atual antes de continuar.</p>
-      <button type="button" onClick={carregarFormacaoAtual}><RotateCcw size={18}/> Carregar formação atual</button>
-      <details><summary>Ver formação salva</summary><ul>{rodada.equipes.map(e => <li key={e.id}><strong>{e.nome}</strong>: {e.atletas.map(id => nomePorId.get(id) ?? 'Jogador não localizado').join(' · ') || 'Sem jogadores'}</li>)}</ul></details>
-    </div>}
-    {resumo.semPresenca.length > 0 && <p className="rounds-validation" role="alert">Há {resumo.semPresenca.length} jogador(es) nesta montagem sem presença válida no sábado. Confira a lista antes de salvar ou descarte os ajustes para carregar a formação atual.</p>}
-    {erro && <p className="rounds-validation" role="alert">{erro}</p>}
-    {erroRascunho && <p className="rounds-validation" role="alert">{erroRascunho}</p>}
-    {ajustesLocais && !erroRascunho && <p className="ux-draft-note" role="status">Rascunho guardado neste navegador. Os times ainda precisam ser confirmados.</p>}
+  return <section className="team-board montagem-direta" aria-labelledby="team-board-title">
+    <header className="montagem-topo"><h3 id="team-board-title">Montar times</h3><span>{ajustesLocais ? 'Alterações por salvar' : 'Formação do sábado'}</span>
+    {podeEditar && <div><button type="button" onClick={()=>executarHistorico()} disabled={!historico.anteriores.length} aria-label="Desfazer última alteração"><RotateCcw size={18}/></button><button type="button" onClick={()=>executarHistorico(true)} disabled={!historico.posteriores.length} aria-label="Refazer alteração"><RotateCw size={18}/></button></div>}</header>
+    {divergiu && <p role="alert">A formação mudou em outro dispositivo. <button type="button" onClick={carregarFormacaoAtual}>Carregar formação atual</button></p>}
+    {(erro || erroRascunho) && <p className="rounds-validation" role="alert">{erro || erroRascunho}</p>}
+    {bloqueadas && <p role="status">Esta formação está protegida. Edite a escalação dentro da partida.</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
-    {rodada.jogos.length > 0 && <p className="ux-draft-note">Esta montagem vale para partidas novas. As escalações, goleiros e resultados dos jogos já criados permanecem iguais.</p>}
-    <div className="team-board-count"><UsersRound size={19}/> {presente.length} disponíveis para jogar · {equipes.length} times · {resumo.escalados} escalados · {resumo.disponiveis.length} disponíveis</div>
-    <div className="multi-team-grid">
-      {equipes.map((e, i) => {
-        const presencasValidas = e.atletas.every(id => presentesIds.includes(id));
-        const completo = e.atletas.length === JOGADORES_POR_TIME && presencasValidas;
-        return <div key={e.id} className={`multi-team-card ${completo ? 'multi-team-card--ready' : ''}`}>
-          <div className="multi-team-head"><span className="multi-team-index">TIME {String(i+1).padStart(2,'0')}</span>
-            {podeEditar && equipes.length > 2 && <button type="button" className="multi-team-remove" onClick={() => removerEquipe(e.id)} aria-label={`Remover ${e.nome}`}><Trash2 size={18}/></button>}
-          </div>
-          <label className="multi-team-name">Nome do time<input value={e.nome} maxLength={40} disabled={!podeEditar} onBlur={() => setHistorico(h => ({...h, grupo:undefined}))} onChange={(ev: ChangeEvent<HTMLInputElement>) => renomear(e.id, ev.target.value)}/></label>
-          <div className="multi-team-roster"><strong className={completo ? 'egc8-ready' : 'egc8-pending'}>{e.atletas.length}/7 jogadores · {!presencasValidas ? 'Confira as presenças' : completo ? 'Time completo' : e.atletas.length > 7 ? 'Acima do limite' : `Faltam ${Math.max(0, 7 - e.atletas.length)}`}</strong><p>{e.atletas.length ? e.atletas.map(id => nomePorId.get(id) ?? 'Jogador não localizado').join(' · ') : 'Nenhum jogador escalado'}</p><small>O goleiro será escolhido entre esses 7 na súmula.</small></div>
-          {podeEditar && <button type="button" className="ux-manual-open" aria-expanded={timeEmMontagem === e.id} onClick={() => { setTimeEmMontagem(timeEmMontagem === e.id ? '' : e.id); setBuscaManual(''); }}> {timeEmMontagem === e.id ? 'Fechar seleção' : 'Escolher jogadores'} — {e.nome}</button>}
-          {podeEditar && timeEmMontagem === e.id && <div className="ux-manual-picker">
-            <p>Marque quem joga no <strong>{e.nome}</strong>. Desmarque para liberar uma vaga. Para trocar entre times cheios, use a ferramenta de trocas abaixo.</p>
-            <label>Buscar para {e.nome}<input type="search" value={buscaManual} onChange={ev => setBuscaManual(ev.target.value)} placeholder="Nome do jogador"/></label>
-            <div role="group" aria-label={`Escolher jogadores do ${e.nome}`}>
-              {presente.filter(j => normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))).map(j => {
-                const origem = equipes.find(t => t.atletas.includes(j.id));
-                const marcado = origem?.id === e.id;
-                return <label key={j.id}><input type="checkbox" checked={marcado} disabled={!marcado && (!!origem || e.atletas.length >= 7)} onChange={() => atribuir(j.id, marcado ? '' : e.id)}/><span>{j.nome}<small>{marcado ? 'Neste time' : origem ? `Já está no ${origem.nome}` : e.atletas.length >= 7 ? 'Time completo' : 'Disponível'}</small></span></label>;
-              })}
-              {!presente.some(j => normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))) && <p>Nenhum jogador encontrado. Confira a busca.</p>}
-            </div>
-            <strong role="status">{e.atletas.length}/7 selecionados · {Math.max(0, 7-e.atletas.length)} vagas</strong>
-          </div>}
-        </div>;
-      })}
-      {podeEditar && <button type="button" className="multi-team-add" onClick={adicionarEquipe}><Plus size={25}/><strong>Adicionar time</strong><small>Até 16 equipes por sábado</small></button>}
-    </div>
-    {podeEditar && presente.length > 0 && <div className="quick-team-tools" role="group" aria-label="Ferramentas rápidas para montagem dos times">
-      <div><strong>Você controla a montagem</strong><small>Escolha os jogadores em cada time. Você também pode mover nomes na lista abaixo.</small></div>
-      <button type="button" onClick={liberarTodos} disabled={!equipes.some(e => e.atletas.length)}><X size={19}/> Limpar escalação</button>
-      <button type="button" onClick={() => executarHistorico()} disabled={!historico.anteriores.length}><RotateCcw size={19}/> Desfazer última alteração</button>
-      <button type="button" onClick={() => executarHistorico(true)} disabled={!historico.posteriores.length}><RotateCw size={19}/> Refazer alteração</button>
-      <small className="ux-history-hint">Até 20 alterações nesta tela. Inclui nomes, jogadores e times; não altera partidas já criadas.</small>
-    </div>}
-    {presente.length > equipes.length * 7 && podeEditar && <p className="ux-draft-note">Com {equipes.length} times, {presente.length - equipes.length * 7} presentes ficarão disponíveis. <button type="button" onClick={adicionarEquipe} disabled={equipes.length >= 16}>Adicionar mais um time</button> Escolha os jogadores do novo time; a montagem atual será mantida.</p>}
-    {podeEditar && presente.length > 0 && <details className="ux-maintenance"><summary>Opção adicional: distribuir por ordem de chegada</summary><div className="quick-team-tools"><p>Opcional, sem sorteio: preenche os times em rodízio pela chegada e substitui a montagem local. Revise antes de confirmar.</p><button type="button" onClick={distribuirPorChegada} disabled={presente.length < equipes.length}><Shuffle size={19}/> Distribuir por ordem de chegada</button></div></details>}
-    {!presente.length ? <p className="team-board-empty">Volte à etapa Presentes para confirmar quem chegou.</p> : <details className="multi-assignment ssw-times-distribuicao">
-      <summary><span><strong>Lista geral, transferências e trocas</strong><small>{resumo.disponiveis.length} disponíveis · {resumo.completos} times completos</small></span><ChevronDown size={21} aria-hidden="true"/></summary>
-      <div className="ssw-times-distribuicao-conteudo">
-        {podeEditar && resumo.escalados >= 2 && <fieldset className="ux-player-swap"><legend>Trocar jogadores entre dois times</legend>
-          <label>Primeiro jogador<select aria-label="Primeiro jogador da troca" value={trocaA} onChange={e => { setTrocaA(e.target.value); setTrocaB(''); }}><option value="">Escolha um jogador</option>{equipes.map(e => <optgroup key={e.id} label={e.nome}>{e.atletas.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label>
-          <label>Trocar com<select aria-label="Segundo jogador da troca" value={trocaB} onChange={e => setTrocaB(e.target.value)}><option value="">Escolha o outro jogador</option>{equipes.filter(e => !e.atletas.includes(trocaA)).map(e => <optgroup key={e.id} label={e.nome}>{e.atletas.map(id => <option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label>
-          {trocaA && trocaB && <p>{nomePorId.get(trocaA)} ↔ {nomePorId.get(trocaB)}. Os demais jogadores permanecem nos mesmos times.</p>}
-          <button type="button" disabled={!trocaA || !trocaB} onClick={trocar}>Trocar estes jogadores</button>
-        </fieldset>}
-        <p>Busque um nome ou filtre a lista. Os números mostram a posição real de chegada.</p>
-        <div className="ssw-times-filtros">
-          <label><span>Buscar jogador</span><div><Search size={19} aria-hidden="true"/><input type="search" aria-label="Buscar jogador na distribuição" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Nome do jogador"/></div></label>
-          <label><span>Mostrar</span><select aria-label="Filtrar distribuição" value={filtroAtivo} onChange={e => setFiltro(e.target.value)}><option value="todos">Todos os presentes ({presente.length})</option><option value="disponiveis">Disponíveis ({resumo.disponiveis.length})</option>{equipes.map(e => <option key={e.id} value={`time:${e.id}`}>{e.nome} ({e.atletas.length}/7)</option>)}</select></label>
-          {(busca || filtroAtivo !== 'todos') && <button type="button" onClick={() => { setBusca(''); setFiltro('todos'); }}><X size={18}/> Limpar filtros</button>}
-        </div>
-        <p className="ssw-times-total-filtrado">{visiveis.length} de {presente.length} jogadores</p>
-        <div className="multi-assignment-grid">{visiveis.map(j => {
-          const associado = equipes.find(e => e.atletas.includes(j.id))?.id ?? '';
-          return <label key={j.id} className="multi-assignment-person"><span><small>#{String(rodada.presencas.indexOf(j.id)+1).padStart(2,'0')}</small><strong>{j.nome}</strong></span>
-            <select disabled={!podeEditar} value={associado} onChange={(ev: ChangeEvent<HTMLSelectElement>) => atribuir(j.id, ev.target.value)} aria-label={`Time de ${j.nome}`}>
-              <option value="">Disponível / sem time</option>{equipes.map(e => <option key={e.id} value={e.id} disabled={e.atletas.length >= JOGADORES_POR_TIME && associado !== e.id}>{e.nome} · {e.atletas.length}/7{e.atletas.length >= JOGADORES_POR_TIME ? ' · Completo' : ''}</option>)}
-            </select></label>;
-        })}</div>
-        {!visiveis.length && <p className="ssw-times-sem-resultado">{filtroAtivo === 'disponiveis' && !busca ? 'Todos os presentes estão escalados. Use Todos os presentes para consultar a distribuição.' : 'Nenhum jogador corresponde à busca e ao filtro selecionados.'}</p>}
-      </div>
-    </details>}
-    <div className="team-board-footer"><p>{pronta ? `${resumo.completos} times completos. ${resumo.disponiveis.length} jogadores disponíveis fora da formação.` : `Complete pelo menos dois times de 7 para criar uma partida. Há ${presente.length} presentes.`}</p>
-      <div className="team-board-buttons">{ajustesLocais && <button type="button" className="team-board-secondary" onClick={carregarFormacaoAtual}><RotateCcw size={18}/> Descartar ajustes</button>}
-        {podeEditar && <button type="button" className="team-board-secondary" disabled={!alterado && !!rodada.equipes.length} onClick={() => salvar(false)}><Save size={18}/> {pronta ? 'Salvar sem continuar' : 'Guardar montagem incompleta'}</button>}
-        {pronta && <button type="button" className="team-board-primary" disabled={divergiu || bloqueadas && ajustesLocais} onClick={() => alterado && podeEditar ? salvar(true) : continuar?.()}><Check size={18}/> {bloqueadas ? 'Continuar para partidas' : 'Confirmar times e continuar'}</button>}
+    <div className="montagem-colunas">
+      <aside className="montagem-presentes" aria-label="Lista de presentes para montar os times">
+        <header><h4>Presentes</h4><strong>{presente.length}</strong></header>
+        <label>Buscar jogador<input type="search" value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Nome do jogador"/></label>
+        <div className="montagem-filtros"><button type="button" aria-pressed={filtro==='disponiveis'} onClick={()=>setFiltro('disponiveis')}>Disponíveis ({resumo.disponiveis.length})</button><button type="button" aria-pressed={filtro==='todos'} onClick={()=>setFiltro('todos')}>Todos</button></div>
+        <div className="montagem-lista">{visiveis.map(j=>{const associado=equipes.find(e=>e.atletas.includes(j.id));return <label key={j.id}><span><small>{rodada.presencas.indexOf(j.id)+1}</small><strong>{j.nome}</strong></span><select aria-label={`Time de ${j.nome}`} disabled={!podeEditar} value={associado?.id??''} onChange={e=>atribuir(j.id,e.target.value)}><option value="">Escolher time</option>{equipes.map(e=><option key={e.id} value={e.id} disabled={e.atletas.length>=7&&e.id!==associado?.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>;})}</div>
+        {!visiveis.length&&<p>{busca?'Nenhum nome encontrado.':'Todos os presentes estão nos times.'}</p>}
+      </aside>
+      <div className="montagem-equipes"><div className="multi-team-grid">{equipes.map((e,i)=><article key={e.id} className="multi-team-card">
+        <header className="montagem-time-topo"><label>Time {i+1}<input value={e.nome} maxLength={40} disabled={!podeEditar} onBlur={()=>setHistorico(h=>({...h,grupo:undefined}))} onChange={ev=>renomear(e.id,ev.target.value)}/></label><strong>{e.atletas.length}/7</strong>{podeEditar&&equipes.length>2&&<button type="button" onClick={()=>removerEquipe(e.id)} aria-label={`Remover ${e.nome}`}><Trash2 size={17}/></button>}</header>
+        <ul className="montagem-escalados">{e.atletas.map(id=><li key={id}><strong>{nomePorId.get(id)??'Jogador'}</strong>{podeEditar&&<select aria-label={`Remanejar ${nomePorId.get(id)}`} value={e.id} onChange={ev=>atribuir(id,ev.target.value)}><option value="">Deixar disponível</option>{equipes.map(t=><option key={t.id} value={t.id} disabled={t.atletas.length>=7&&t.id!==e.id}>{t.nome}</option>)}</select>}</li>)}</ul>
+        {podeEditar&&e.atletas.length<7&&<><button type="button" className="ux-manual-open" onClick={()=>{setTimeEmMontagem(timeEmMontagem===e.id?'':e.id);setBuscaManual('');}} aria-expanded={timeEmMontagem===e.id}>{timeEmMontagem===e.id?'Fechar seleção':'+ Escolher jogadores'}</button>{timeEmMontagem===e.id&&<div className="ux-manual-picker"><input aria-label={`Buscar para ${e.nome}`} placeholder="Buscar disponível" value={buscaManual} onChange={ev=>setBuscaManual(ev.target.value)}/>{presente.filter(j=>!equipes.some(t=>t.atletas.includes(j.id))&&normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))).map(j=><button type="button" key={j.id} onClick={()=>atribuir(j.id,e.id)}>{j.nome}<Plus size={16}/></button>)}{!resumo.disponiveis.length&&<p>Nenhum jogador disponível.</p>}</div>}</>}
+      </article>)}</div>
+      {podeEditar&&<button type="button" className="montagem-adicionar" onClick={adicionarEquipe}><Plus size={18}/>Adicionar time</button>}
+      {podeEditar&&<details className="montagem-opcoes"><summary>Trocar jogadores e outras ações</summary><div className="ux-player-swap"><label>Primeiro jogador<select value={trocaA} onChange={ev=>setTrocaA(ev.target.value)}><option value="">Escolha</option>{equipes.map(e=><optgroup key={e.id} label={e.nome}>{e.atletas.map(id=><option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label><label>Segundo jogador<select value={trocaB} onChange={ev=>setTrocaB(ev.target.value)}><option value="">Escolha</option>{equipes.filter(e=>!e.atletas.includes(trocaA)).map(e=><optgroup key={e.id} label={e.nome}>{e.atletas.map(id=><option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label><button type="button" disabled={!trocaA||!trocaB} onClick={trocar}>Trocar jogadores</button></div><button type="button" onClick={liberarTodos}>Limpar escalação</button><button type="button" onClick={distribuirPorChegada}>Distribuir por chegada</button></details>}
       </div>
     </div>
+    <footer className="team-board-footer"><span>{resumo.completos} times completos · {resumo.disponiveis.length} disponíveis</span><div className="team-board-buttons">{ajustesLocais&&<button type="button" onClick={carregarFormacaoAtual}>Descartar ajustes</button>}{podeEditar&&<button type="button" onClick={()=>salvar(false)} disabled={!alterado&&!!rodada.equipes.length}>Salvar times</button>}{pronta&&<button type="button" className="team-board-primary" onClick={()=>alterado&&podeEditar?salvar(true):continuar?.()} disabled={divergiu}>Continuar para partidas</button>}</div></footer>
   </section>;
 }

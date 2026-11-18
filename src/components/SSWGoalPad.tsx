@@ -9,10 +9,13 @@ type Props = {
   mudarLado: (lado: Lado) => void;
   adicionar: (lado: Lado, jogadorId: string) => void;
   remover: (lado: Lado, jogadorId: string) => void;
+  presentes?: string[];
+  escolherGoleiro?: (lado:Lado,id:string) => void;
+  substituir?: (lado:Lado,sai:string,entra:string) => void;
 };
 
 /** Uma equipe por vez para facilitar o toque, com gol e correção na mesma linha. */
-export function SSWGoalPad({ jogo, nomes, lado, mudarLado, adicionar, remover }: Props) {
+export function SSWGoalPad({ jogo, nomes, lado, mudarLado, adicionar, remover, presentes=[], escolherGoleiro, substituir }: Props) {
   const encerrada = jogo.status === 'encerrada';
   const atletas = lado === 'A' ? jogo.atletasA : jogo.atletasB;
   const goleiro = lado === 'A' ? jogo.goleiroA : jogo.goleiroB;
@@ -35,6 +38,8 @@ export function SSWGoalPad({ jogo, nomes, lado, mudarLado, adicionar, remover }:
         <strong>{l === 'A' ? jogo.golsA : jogo.golsB}</strong>
       </button>)}
     </div>
+    {escolherGoleiro&&<label className="jogo-goleiro-inline">Goleiro do {time}<select data-conferencia={`goleiro-${lado}`} aria-label={`Goleiro do ${time}`} disabled={encerrada} value={goleiro??''} onChange={e=>escolherGoleiro(lado,e.target.value)}><option value="">Escolher</option>{atletas.map(id=><option key={id} value={id}>{nomes.get(id)}</option>)}</select></label>}
+    {substituir&&!encerrada&&<details className="jogo-escalacao-inline"><summary>Editar escalação deste jogo</summary>{atletas.map(id=><label key={id}>{nomes.get(id)}<select aria-label={`Substituir ${nomes.get(id)} neste jogo`} value={id} onChange={e=>substituir(lado,id,e.target.value)}><option value={id}>{nomes.get(id)}</option>{presentes.filter(p=>!atletas.includes(p)).map(p=><option key={p} value={p}>{(lado==='A'?jogo.atletasB:jogo.atletasA).includes(p)?'Trocar com ':''}{nomes.get(p)}</option>)}</select></label>)}</details>}
     <div className="eg09d-roster" aria-label={`Jogadores do ${time}`}>
       {atletas.map((id, idx) => {
         const nome = nomes.get(id) || `Jogador ${idx+1}`;

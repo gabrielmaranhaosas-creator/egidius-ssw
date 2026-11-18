@@ -1,3 +1,5 @@
+import { substituirNoJogo } from './EscalarNoJogo';
+import './styles/ssw-operacao-direta.css';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList,
@@ -74,6 +76,7 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
   function encerrar(partida: Partida) {
     if (mostrarConferencia(partida)) { setErro(''); setMensagem(''); return; }
     if (!window.confirm(`Encerrar o Jogo ${String(partida.numero).padStart(2,'0')} (${partida.timeA} ${partida.golsA} × ${partida.golsB} ${partida.timeB})? Os rankings serão atualizados.`)) return;
+    setJogoId(partida.id);
     modificar(partida, `Jogo ${partida.numero} encerrado`, encerrarPartida);
   }
   function novoConfronto() {
@@ -182,9 +185,12 @@ export function ExpressPage({ initialRoundId, initialGameId, onRoundChange, orga
         <div className="express-score-grid">{(['A','B'] as const).map(lado => {const placar = lado==='A' ? jogo.golsA : jogo.golsB;const titulo = lado==='A'?jogo.timeA:jogo.timeB;return <div className="express-score-team" key={lado}><strong>{titulo}</strong><div className="express-score-value" aria-label={`${titulo}: ${placar} gols`}>{placar}</div><small>{golsAtribuidos(jogo,lado)} gols com autor identificado</small></div>;})}</div>
         {jogo.status === 'encerrada' && <p className="express-closed-note">Partida encerrada. Confira a sincronização no topo antes de sair.</p>}
         <p className="express-score-hint">Toque em <strong>+ Gol</strong> ao lado do jogador. O placar será atualizado automaticamente.</p>
-        <section className="ux-keepers-required" aria-label="Goleiros desta partida"><h3>Goleiros da partida</h3><p>Escolha um jogador de cada time. Essa informação é necessária para encerrar.</p><div className="express-keepers">{(['A','B'] as const).map(lado => <label key={lado}><Shield size={17}/> Goleiro · {lado==='A'?jogo.timeA:jogo.timeB}<select data-conferencia={`goleiro-${lado}`} disabled={jogo.status==='encerrada'} value={(lado==='A'?jogo.goleiroA:jogo.goleiroB)??''} onChange={e=>modificar(jogo,'goleiro alterado',j=>({...j,[lado==='A'?'goleiroA':'goleiroB']:e.target.value||null}))}><option value="">Não informado</option>{(lado==='A'?jogo.atletasA:jogo.atletasB).map(id=><option key={id} value={id}>{nomes.get(id)??'Atleta'}</option>)}</select></label>)}</div></section>
         <SSWGoalPad
+          key={jogo.id}
           jogo={jogo}
+          presentes={rodada?.presencas??[]}
+          escolherGoleiro={(l,id)=>modificar(jogo,'Goleiro atualizado',j=>({...j,[l==='A'?'goleiroA':'goleiroB']:id||null}))}
+          substituir={(l,sai,entra)=>modificar(jogo,'Escalação do jogo atualizada',j=>substituirNoJogo(j,l,sai,entra,rodada?.presencas??[]))}
           nomes={nomes}
           lado={ladoAtivo}
           mudarLado={setLadoAtivo}
