@@ -55,7 +55,7 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
       {!consulta && <section className="inicio-continuar" aria-label="Próximo passo"><span>AGORA</span><h2>{jornada.titulo}</h2><p>{jornada.texto}</p><button type="button" className="inicio-principal" onClick={continuar}>{jornada.acao}<ArrowRight size={21}/></button></section>}
       {consulta && <p>Você está no modo consulta. A organização registra as alterações.</p>}
       <nav className="inicio-atalhos" aria-label="Organizar o sábado">
-        <button type="button" onClick={()=>ir(dados.jogadores.length?'presencas':'cadastro')}><UsersRound size={23}/><span><strong>Presenças</strong><small>{dados.jogadores.length?`${resumo.presentes} de ${dados.jogadores.length} jogadores chegaram`:'Cadastrar os primeiros jogadores'}</small></span><ChevronRight size={20}/></button>
+        <button type="button" onClick={()=>ir(dados.jogadores.length?'presencas':'cadastro')}><UsersRound size={23}/><span><strong>Presenças</strong><small>{dados.jogadores.length?`${resumo.presentes} de ${dados.jogadores.length} com presença`:'Cadastrar os primeiros jogadores'}</small></span><ChevronRight size={20}/></button>
         <button type="button" onClick={()=>ir('times')}><Shield size={23}/><span><strong>Montar times</strong><small>Escolha os jogadores e faça as trocas</small></span><ChevronRight size={20}/></button>
         <button type="button" onClick={()=>abrirExpressa(rodada.id)}><ClipboardList size={23}/><span><strong>Partidas e súmulas</strong><small>{resumo.rascunhos?`${resumo.rascunhos} em edição`:'Criar jogo, marcar gols e encerrar'}</small></span><ChevronRight size={20}/></button>
       </nav>
