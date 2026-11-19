@@ -7,9 +7,9 @@ const mod={exports:{}};
 vm.runInThisContext('(function(require,module,exports){'+result.outputText+'\n})',{filename:file})(name=>name.endsWith('.css')?{}:require(name),mod,mod.exports);
 const {PainelFutebolPublico,ordenarRankingPublico}=mod.exports;
 const stat=(id,nome,pontos,gols,jogosGoleiro=0,golsSofridos=0)=>({id,nome,pontos,gols,jogosGoleiro,golsSofridos,jogos:1,presencas:1,vitorias:1,empates:0,derrotas:0});
-function render(dados=null,extra={}){return renderToStaticMarkup(React.createElement(PainelFutebolPublico,{dados,entrar(){},atualizar(){},...extra}));}
-test('consulta vazia mostra navegação livre e entrada para organização sem pedir convite',()=>{
- const html=render();assert.match(html,/Consulta livre/);assert.match(html,/Entrar para organizar/);assert.match(html,/Nenhum sábado publicado/);assert.doesNotMatch(html,/Convite de acesso necessário/);
+function render(dados=null,extra={}){return renderToStaticMarkup(React.createElement(PainelFutebolPublico,{dados,atualizar(){},...extra}));}
+test('consulta pública não oferece formulário ou atalhos para o login',()=>{
+ const html=render();assert.match(html,/Consulta livre/);assert.doesNotMatch(html,/Entrar para organizar|Acesso de organização|type="password"/);assert.match(html,/Nenhum sábado publicado/);assert.doesNotMatch(html,/Convite de acesso necessário/);
 });
 test('placares provisórios e histórico são renderizados sem interpretar nomes como HTML',()=>{
  const dados={jogadores:[{id:'p',nome:'<script>alert(1)</script>'}],rankings:[],rodadas:[{id:'r',data:'2026-11-14',presencas:['p'],equipes:[],jogos:[{id:'g',numero:1,timeA:'<img onerror=alert(1)>',timeB:'Branco',golsA:2,golsB:1,status:'rascunho',atletasA:['p'],atletasB:[],golsPorAtleta:{p:2},goleiroA:'p',goleiroB:null}]}]};

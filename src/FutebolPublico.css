@@ -13,7 +13,7 @@ body:has(.futebol-publico){min-width:0}
 .fp-brand strong{display:block;font-size:27px;font-weight:900;line-height:1.1}
 .fp-brand strong span{color:#b98631}
 .fp-brand small{font-size:10px;letter-spacing:.2em}
-.futebol-publico .fp-login,.futebol-publico .fp-organize button{background:#39251f;color:#fffaf0;border-color:#39251f}
+
 .futebol-publico main{max-width:1220px;margin:auto;padding:0 32px 48px}
 .fp-hero{position:relative;padding:48px;border-radius:24px;background:linear-gradient(115deg,#34241e,#633425);color:#fff8e9;overflow:hidden}
 .fp-hero:after{content:'';width:280px;height:280px;border:1px solid #c1944e66;border-radius:50%;position:absolute;right:-80px;top:-110px;pointer-events:none}
@@ -63,11 +63,11 @@ body:has(.futebol-publico){min-width:0}
 .fp-ranking small{display:block;font-size:11px;font-weight:400;color:#796758}
 .fp-ranking b{text-align:right;font-size:24px;min-width:54px}
 .fp-ranking b small{font-size:10px;letter-spacing:0}
-.fp-organize{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:28px;margin-top:24px;border:1px solid #dbc6a5;background:#efe2c8;border-radius:18px}
-.fp-organize h2{font-size:23px}
-.fp-organize p{max-width:650px;margin-bottom:0}
-.fp-organize button{flex-shrink:0}
+
+
+
+
 .fp-footer{max-width:1220px;margin:auto;padding:0 32px 35px;font-size:12px;font-weight:700}
 .fp-footer span{display:block;margin-top:6px;font-size:11px;font-weight:400;color:#796758}
 @media(max-width:360px){.fp-tabs button{min-width:0;white-space:nowrap}.fp-tabs svg{display:none}}
-@media(max-width:650px){.fp-top{padding:18px 16px;align-items:center;gap:10px}.fp-brand{gap:8px}.fp-brand img{height:44px;width:36px}.fp-brand strong{font-size:21px}.fp-brand small{font-size:8px}.futebol-publico .fp-login{font-size:12px;max-width:145px;padding:9px 11px}.fp-login svg{display:none}.futebol-publico main{padding:0 14px 30px}.fp-hero{padding:30px 24px;border-radius:18px}.fp-hero p{font-size:15px}.fp-toolbar{align-items:stretch;flex-direction:column;padding:17px;gap:16px}.fp-toolbar>div{align-items:flex-start}.fp-metrics{gap:7px}.fp-metrics>span{font-size:12px;padding:8px 10px}.fp-metrics svg{width:16px}.fp-content{padding:20px 16px}.fp-content h2{font-size:25px}.fp-games,.fp-teams{grid-template-columns:1fr}.fp-game{padding:16px}.fp-score{gap:8px}.fp-score>b{font-size:30px}.fp-score strong{font-size:14px}.fp-tabs{gap:6px}.fp-tabs button{flex:1;padding:10px;font-size:13px}.fp-tabs svg{width:16px}.fp-ranking li{gap:9px}.fp-ranking strong{font-size:14px}.fp-ranking small{font-size:10px}.fp-organize{flex-direction:column;align-items:flex-start;padding:23px}.fp-organize button{width:100%}.fp-footer{padding:0 20px 30px}}
+@media(max-width:650px){.fp-top{padding:18px 16px;align-items:center;gap:10px}.fp-brand{gap:8px}.fp-brand img{height:44px;width:36px}.fp-brand strong{font-size:21px}.fp-brand small{font-size:8px}.futebol-publico main{padding:0 14px 30px}.fp-hero{padding:30px 24px;border-radius:18px}.fp-hero p{font-size:15px}.fp-toolbar{align-items:stretch;flex-direction:column;padding:17px;gap:16px}.fp-toolbar>div{align-items:flex-start}.fp-metrics{gap:7px}.fp-metrics>span{font-size:12px;padding:8px 10px}.fp-metrics svg{width:16px}.fp-content{padding:20px 16px}.fp-content h2{font-size:25px}.fp-games,.fp-teams{grid-template-columns:1fr}.fp-game{padding:16px}.fp-score{gap:8px}.fp-score>b{font-size:30px}.fp-score strong{font-size:14px}.fp-tabs{gap:6px}.fp-tabs button{flex:1;padding:10px;font-size:13px}.fp-tabs svg{width:16px}.fp-ranking li{gap:9px}.fp-ranking strong{font-size:14px}.fp-ranking small{font-size:10px}.fp-footer{padding:0 20px 30px}}

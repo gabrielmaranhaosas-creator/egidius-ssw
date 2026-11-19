@@ -10,7 +10,7 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const pending = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return {promise, resolve}; };
 
 // Executa o componente verdadeiro com hooks, rede e armazenamento controlados.
-async function abrir({publico=false,initialData,initialGeneration=0,remoteGeneration=0}={}) {
+async function abrir({publico=false,organizar=false,initialData,initialGeneration=0,remoteGeneration=0}={}) {
   const states=[], refs=[], effects=[], events=new Map();
   let cursor=0, effectQueue=[], local={versao:5,jogadores:[],rodadas:[]};
   if(initialData)local=copy(initialData);
@@ -29,7 +29,7 @@ async function abrir({publico=false,initialData,initialGeneration=0,remoteGenera
     },
   };
   const jsx=(_type,props)=>({type:_type,props});
-  const window={location:{href:'http://127.0.0.1:5173/'},history:{replaceState(){}},
+  const window={location:{href:organizar?'https://egidius.example/?organizar=1':'http://127.0.0.1:5173/'},history:{replaceState(){}},
     document:{visibilityState:'visible',addEventListener(name,fn){events.set(name,fn);},removeEventListener(name){events.delete(name);}},
     setInterval(fn){poll=fn;return 1;},clearInterval(){},setTimeout(){return 1;},
     addEventListener(name,fn){events.set(name,fn);},removeEventListener(name){events.delete(name);}};
@@ -46,7 +46,7 @@ async function abrir({publico=false,initialData,initialGeneration=0,remoteGenera
     if(name==='./Permissoes')return {usePapel:()=> 'admin',definirPapel(){}};
     if(name==='./RevisarConflitos')return {};
     if(name==='./FutebolPublico')return {FutebolPublico:()=>null};
-    if(name==='./Organizacao')return {};
+    if(name==='./Organizacao')return {EntradaOrganizacao:function EntradaOrganizacao(){}};
     if(name==='./MesclarEstados')return require('./carregar-regras.cjs').load('MesclarEstados');
     if(name==='./MontagemDrafts')return {definirOperadorMontagem(){},podeSairDaMontagem:()=>true,useMontagensPendentes:()=>0};
     if(name.endsWith('.css'))return {};
@@ -74,8 +74,9 @@ test('visitante sem sessão recebe consulta pública sem carregar ou gravar o es
   const app=await abrir({publico:true});
   assert.equal(app.states[3],'public');
   assert.deepEqual(app.current(),{versao:5,jogadores:[],rodadas:[]});
-  const page=app.render();assert.equal(typeof page.type,'function');assert.equal(typeof page.props.entrar,'function');
-  page.props.entrar();app.render();assert.equal(app.states[1],true);
+  const page=app.render();assert.equal(typeof page.type,'function');assert.equal(page.props.entrar,undefined);
+  const admin=await abrir({publico:true,organizar:true});
+  assert.equal(admin.render().props.children.type.name,'EntradaOrganizacao');
 });
 
 test('aba oculta suspende consultas e retoma a leitura ao voltar',async()=>{
