@@ -1,5 +1,13 @@
 import type { DadosSSW, Jogador, Partida, Rodada } from './SSWStore';
 
+/** Presentes na ordem registrada, seguidos dos demais na ordem do cadastro. */
+export function ordenarChegadas(presencas: readonly string[], jogadores: readonly Jogador[]) {
+  const posicoes = new Map(presencas.map((id, index) => [id, index + 1]));
+  return jogadores
+    .map(jogador => ({ jogador, posicao: posicoes.get(jogador.id) }))
+    .sort((a, b) => (a.posicao ?? presencas.length + 1) - (b.posicao ?? presencas.length + 1));
+}
+
 /** A ordem de chegada já registrada nunca é reordenada. */
 export function marcarTodos(rodada: Rodada, jogadores: Jogador[]): Rodada {
   const presentes = new Set(rodada.presencas);

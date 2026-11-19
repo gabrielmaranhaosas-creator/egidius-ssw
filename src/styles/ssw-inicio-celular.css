@@ -1,9 +1,9 @@
 /* Início pensado para uma mão: data, próxima ação, três destinos. */
 .campo-page.inicio-celular{width:100%;max-width:960px;gap:16px;min-width:0}
 .inicio-celular *{min-width:0}
-.inicio-cabecalho>span,.inicio-continuar>span{font-size:11px;font-weight:800;letter-spacing:.1em;color:#875e38}
+.inicio-cabecalho>span>span{font-size:11px;font-weight:800;letter-spacing:.1em;color:#875e38}
 .inicio-cabecalho h1{font-family:'Barlow Condensed',Impact,sans-serif;font-size:40px;line-height:1.05;margin:4px 0 0;color:#34251e}
-.inicio-data,.inicio-continuar,.inicio-jogos{padding:20px;border:1px solid #ded5c6;border-radius:15px;background:#fffefa}
+.inicio-data,.inicio-jogos{padding:20px;border:1px solid #ded5c6;border-radius:15px;background:#fffefa}
 .inicio-data>label{display:grid;grid-template-columns:22px 1fr;align-items:center;gap:8px;font-size:14px;font-weight:750}
 .inicio-data select{grid-column:1/-1;width:100%;min-height:50px;padding:12px;font:inherit;font-size:16px;font-weight:750;border:1px solid #cbbb9f;border-radius:9px;background:#fff;color:#372b23}
 .inicio-numeros{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:13px;margin-top:14px;color:#786651}
@@ -13,15 +13,15 @@
 .inicio-celular button:focus-visible,.inicio-celular input:focus-visible,.inicio-celular select:focus-visible{outline:3px solid #bd8433;outline-offset:3px}
 .inicio-data .inicio-outra-data{display:flex;align-items:center;gap:6px;min-height:44px;padding:9px 0;margin-top:8px;background:none;color:#805533;text-align:left;font:inherit;font-size:14px;font-weight:700}
 .inicio-criar{display:grid;gap:12px}
-.inicio-criar h2,.inicio-continuar h2,.inicio-jogos h2{font-size:23px;line-height:1.25;margin:0;color:#36291f}
-.inicio-criar p,.inicio-continuar p,.inicio-jogos>p{font-size:15px;line-height:1.55;color:#706252;margin:0}
+.inicio-criar h2 h2,.inicio-jogos h2{font-size:23px;line-height:1.25;margin:0;color:#36291f}
+.inicio-criar p p,.inicio-jogos>p{font-size:15px;line-height:1.55;color:#706252;margin:0}
 .inicio-criar input{width:100%;max-width:100%;min-height:50px;border:1px solid #cbbb9f;border-radius:8px;padding:10px;font:inherit;font-size:16px;background:#fff;color:#36291f}
 .inicio-criar>label{font-size:14px;font-weight:750}
 .inicio-data:has(.inicio-criar)>.inicio-criar{margin-top:10px}
 .inicio-celular .inicio-principal{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:54px;padding:14px 16px;border-radius:10px;background:#a83c29;color:#fffaf1;font:800 16px/1.4 'Manrope',sans-serif;text-align:left;border:1px solid #943322}
 .inicio-principal svg{flex-shrink:0}
 .inicio-criar>button:not(.inicio-principal){min-height:44px;background:transparent;color:#6b4a32;font:inherit}
-.inicio-continuar{background:#f8efd9;display:grid;gap:10px}
+
 .inicio-atalhos{display:grid;gap:10px}
 .inicio-atalhos>button{display:flex;align-items:center;gap:14px;min-height:76px;padding:16px;background:#fffefa;border:1px solid #ded5c6;border-radius:12px;color:#704c33;text-align:left;width:100%}
 .inicio-atalhos>button>span{display:grid;gap:5px;flex:1}
@@ -39,16 +39,16 @@
 .inicio-jogos .inicio-ver-todos{min-height:44px;justify-content:center;font:inherit;font-size:14px;font-weight:750;border:0;padding:10px}
 @media(min-width:800px){.inicio-celular{grid-template-columns:1fr 1fr}
 .inicio-cabecalho,.inicio-jogos{grid-column:1/-1}
-.inicio-data{grid-column:1}
-.inicio-continuar{grid-column:2;grid-row:2}
+.inicio-data{grid-column:1/-1}
+
 .inicio-atalhos{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr))}
 .inicio-atalhos>button{padding:16px 12px}
 .inicio-atalhos strong{font-size:16px}
 .inicio-atalhos>button>svg:last-child{display:none}}
 @media(max-width:420px){.campo-page.inicio-celular{gap:12px}
 .inicio-cabecalho h1{font-size:34px}
-.inicio-data,.inicio-continuar,.inicio-jogos{padding:16px}
-.inicio-criar h2,.inicio-continuar h2,.inicio-jogos h2{font-size:21px}
+.inicio-data,.inicio-jogos{padding:16px}
+.inicio-criar h2 h2,.inicio-jogos h2{font-size:21px}
 .inicio-numeros{gap:8px 12px;font-size:12px}
 .inicio-atalhos>button{min-height:74px;padding:14px}
 .inicio-atalhos small{font-size:13px}}

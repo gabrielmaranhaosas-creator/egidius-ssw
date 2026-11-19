@@ -8,6 +8,7 @@ import { atualizarDados, novoId } from './SSWStore';
 import { equipesBloqueadas } from './RoundRules';
 import { distribuirPorChegadaAteSete, JOGADORES_POR_TIME } from './TimeRules';
 import { jogadoresPorChegada } from './CampoRules';
+import { ordenarChegadas } from './QuickActions';
 import { assinaturaEquipes, atribuirJogador, copiarEquipes, criarRascunhoTimes, filtrarDistribuicao, proximoNomeTime, reconciliarRascunhoTimes, resumoMontagem, salvarMontagem } from './TeamBoardRules';
 import './styles/ssw-montagem-times.css';
 import './styles/ssw-operacao-direta.css';
@@ -27,8 +28,6 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   const [trocaB, setTrocaB] = useState('');
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
-  const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState('disponiveis');
   const [historico, setHistorico] = useState(historicoMontagemVazio);
   const equipes = rascunho.equipes;
   const assinaturaAtual = assinaturaEquipes(rodada.equipes);
@@ -42,8 +41,9 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
   const presentesIds = presente.map(j => j.id);
   const nomePorId = new Map(jogadores.map(j => [j.id, j.nome]));
   const resumo = resumoMontagem(equipes, presentesIds);
-  const filtroAtivo = filtro.startsWith('time:') && !equipes.some(e => e.id === filtro.slice(5)) ? 'todos' : filtro;
-  const visiveis = filtrarDistribuicao(presente, equipes, busca, filtroAtivo);
+  const chegadas = ordenarChegadas(rodada.presencas, jogadores).filter(({ posicao }) => posicao !== undefined);
+  const termoManual = normalizarBusca(buscaManual);
+  const disponiveisParaEscolha = filtrarDistribuicao(presente, equipes, termoManual, 'disponiveis');
   const pronta = resumo.completos >= 2 && !resumo.semPresenca.length;
   useEffect(() => { setErroRascunho(guardarMontagem(rodada.id, rascunho)); }, [rodada.id, rascunho]);
 
@@ -64,7 +64,7 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     if (ajustesLocais && !window.confirm('Descartar os ajustes deste formulário e carregar a formação salva atualmente? Nenhuma súmula será modificada.')) return;
     const inicial = criarRascunhoTimes(rodada.equipes, novoId);
     montagemInicial.current = inicial; setRascunho(inicial);
-    setHistorico(historicoMontagemVazio()); setErro(''); setBusca(''); setFiltro('todos');
+    setHistorico(historicoMontagemVazio()); setErro(''); setBuscaManual(''); setTimeEmMontagem('');
     setAviso('Formação atual carregada. Os ajustes locais anteriores foram descartados.');
   }
   function distribuirPorChegada() {
@@ -151,17 +151,16 @@ export function TeamBoard({ rodada, jogadores, continuar }: { rodada: Rodada; jo
     {bloqueadas && <p role="status">Esta formação está protegida. Edite a escalação dentro da partida.</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
     <div className="montagem-colunas">
-      <aside className="montagem-presentes" aria-label="Lista de presentes para montar os times">
-        <header><h4>Presentes</h4><strong>{presente.length}</strong></header>
-        <label>Buscar jogador<input type="search" value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Nome do jogador"/></label>
-        <div className="montagem-filtros"><button type="button" aria-pressed={filtro==='disponiveis'} onClick={()=>setFiltro('disponiveis')}>Disponíveis ({resumo.disponiveis.length})</button><button type="button" aria-pressed={filtro==='todos'} onClick={()=>setFiltro('todos')}>Todos</button></div>
-        <div className="montagem-lista">{visiveis.map(j=>{const associado=equipes.find(e=>e.atletas.includes(j.id));return <label key={j.id}><span><small>{rodada.presencas.indexOf(j.id)+1}</small><strong>{j.nome}</strong></span><select aria-label={`Time de ${j.nome}`} disabled={!podeEditar} value={associado?.id??''} onChange={e=>atribuir(j.id,e.target.value)}><option value="">Escolher time</option>{equipes.map(e=><option key={e.id} value={e.id} disabled={e.atletas.length>=7&&e.id!==associado?.id}>{e.nome} · {e.atletas.length}/7</option>)}</select></label>;})}</div>
-        {!visiveis.length&&<p>{busca?'Nenhum nome encontrado.':'Todos os presentes estão nos times.'}</p>}
+      <aside className="montagem-presentes" aria-labelledby="montagem-chegadas">
+        <h4 id="montagem-chegadas">Ordem de chegada <span>· {chegadas.length} presentes</span></h4>
+        {chegadas.length ? <ol className="montagem-chegadas">
+          {chegadas.map(({ jogador, posicao }) => <li key={jogador.id} value={posicao}>{jogador.nome}</li>)}
+        </ol> : <p>Nenhuma presença registrada.</p>}
       </aside>
       <div className="montagem-equipes"><div className="multi-team-grid">{equipes.map((e,i)=><article key={e.id} className="multi-team-card">
         <header className="montagem-time-topo"><label>Time {i+1}<input value={e.nome} maxLength={40} disabled={!podeEditar} onBlur={()=>setHistorico(h=>({...h,grupo:undefined}))} onChange={ev=>renomear(e.id,ev.target.value)}/></label><strong>{e.atletas.length}/7</strong>{podeEditar&&equipes.length>2&&<button type="button" onClick={()=>removerEquipe(e.id)} aria-label={`Remover ${e.nome}`}><Trash2 size={17}/></button>}</header>
         <ul className="montagem-escalados">{e.atletas.map(id=><li key={id}><strong>{nomePorId.get(id)??'Jogador'}</strong>{podeEditar&&<select aria-label={`Remanejar ${nomePorId.get(id)}`} value={e.id} onChange={ev=>atribuir(id,ev.target.value)}><option value="">Deixar disponível</option>{equipes.map(t=><option key={t.id} value={t.id} disabled={t.atletas.length>=7&&t.id!==e.id}>{t.nome}</option>)}</select>}</li>)}</ul>
-        {podeEditar&&e.atletas.length<7&&<><button type="button" className="ux-manual-open" onClick={()=>{setTimeEmMontagem(timeEmMontagem===e.id?'':e.id);setBuscaManual('');}} aria-expanded={timeEmMontagem===e.id}>{timeEmMontagem===e.id?'Fechar seleção':'+ Escolher jogadores'}</button>{timeEmMontagem===e.id&&<div className="ux-manual-picker"><input aria-label={`Buscar para ${e.nome}`} placeholder="Buscar disponível" value={buscaManual} onChange={ev=>setBuscaManual(ev.target.value)}/>{presente.filter(j=>!equipes.some(t=>t.atletas.includes(j.id))&&normalizarBusca(j.nome).includes(normalizarBusca(buscaManual))).map(j=><button type="button" key={j.id} onClick={()=>atribuir(j.id,e.id)}>{j.nome}<Plus size={16}/></button>)}{!resumo.disponiveis.length&&<p>Nenhum jogador disponível.</p>}</div>}</>}
+        {podeEditar&&e.atletas.length<7&&<><button type="button" className="ux-manual-open" onClick={()=>{setTimeEmMontagem(timeEmMontagem===e.id?'':e.id);setBuscaManual('');}} aria-expanded={timeEmMontagem===e.id}>{timeEmMontagem===e.id?'Fechar seleção':'+ Escolher jogadores'}</button>{timeEmMontagem===e.id&&<div className="ux-manual-picker"><input aria-label={`Buscar para ${e.nome}`} placeholder="Buscar disponível" value={buscaManual} onChange={ev=>setBuscaManual(ev.target.value)}/>{disponiveisParaEscolha.map(j=><button type="button" key={j.id} onClick={()=>atribuir(j.id,e.id)}>{j.nome}<Plus size={16}/></button>)}{!disponiveisParaEscolha.length && <p>{termoManual && resumo.disponiveis.length ? 'Nenhum nome encontrado.' : 'Nenhum jogador disponível.'}</p>}</div>}</>}
       </article>)}</div>
       {podeEditar&&<button type="button" className="montagem-adicionar" onClick={adicionarEquipe}><Plus size={18}/>Adicionar time</button>}
       {podeEditar&&<details className="montagem-opcoes"><summary>Trocar jogadores e outras ações</summary><div className="ux-player-swap"><label>Primeiro jogador<select value={trocaA} onChange={ev=>setTrocaA(ev.target.value)}><option value="">Escolha</option>{equipes.map(e=><optgroup key={e.id} label={e.nome}>{e.atletas.map(id=><option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label><label>Segundo jogador<select value={trocaB} onChange={ev=>setTrocaB(ev.target.value)}><option value="">Escolha</option>{equipes.filter(e=>!e.atletas.includes(trocaA)).map(e=><optgroup key={e.id} label={e.nome}>{e.atletas.map(id=><option key={id} value={id}>{nomePorId.get(id)}</option>)}</optgroup>)}</select></label><button type="button" disabled={!trocaA||!trocaB} onClick={trocar}>Trocar jogadores</button></div><button type="button" onClick={liberarTodos}>Limpar escalação</button><button type="button" onClick={distribuirPorChegada}>Distribuir por chegada</button></details>}

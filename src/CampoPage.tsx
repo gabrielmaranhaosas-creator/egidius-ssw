@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { ArrowRight, CalendarDays, ChevronRight, ClipboardList, Plus, Shield, UsersRound } from 'lucide-react';
 import { atualizarDados, dataFormatada, novoId, proximoSabado, useDadosSSW } from './SSWStore';
 import { rodadaCentral, statusRodada, ultimosJogos } from './CampoRules';
-import { jornadaSabado } from './JornadaSabado';
 import { prepararSabado } from './InicioRules';
 import { usePapel } from './Permissoes';
 import type { CampoDestino } from './CampoRules';
@@ -18,17 +17,12 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
   onRodadaChange: (id: string) => void;
 }) {
   const dados=useDadosSSW(), rodada=rodadaCentral(dados,rodadaId);
-  const resumo=statusRodada(rodada,dados.jogadores), jornada=jornadaSabado(rodada,dados);
+  const resumo=statusRodada(rodada,dados.jogadores);
   const consulta=usePapel()==='viewer';
   const [criando,setCriando]=useState(false), [data,setData]=useState(proximoSabado);
   const [erro,setErro]=useState(''), [todos,setTodos]=useState(false);
   const jogos=ultimosJogos(rodada), visiveis=todos?jogos:jogos.slice(0,3);
   function ir(destino:CampoDestino){abrir(destino,rodada?.id);}
-  function continuar(){
-    if(jornada.tipo==='sumula')abrirExpressa(rodada?.id,jornada.jogoId);
-    else if(jornada.tipo==='chegadas')ir('presencas');
-    else ir(jornada.destino);
-  }
   function criar(event:FormEvent){
     event.preventDefault();if(consulta)return;
     try{
@@ -52,7 +46,6 @@ export function CampoPage({ abrir, abrirExpressa, rodadaId, onRodadaChange }: {
       </form> : <button type="button" className="inicio-outra-data" disabled={consulta} onClick={()=>setCriando(true)}><Plus size={17}/> Novo sábado</button>}
     </section>
     {rodada && <>
-      {!consulta && <section className="inicio-continuar" aria-label="Próximo passo"><span>AGORA</span><h2>{jornada.titulo}</h2><p>{jornada.texto}</p><button type="button" className="inicio-principal" onClick={continuar}>{jornada.acao}<ArrowRight size={21}/></button></section>}
       {consulta && <p>Você está no modo consulta. A organização registra as alterações.</p>}
       <nav className="inicio-atalhos" aria-label="Organizar o sábado">
         <button type="button" onClick={()=>ir(dados.jogadores.length?'presencas':'cadastro')}><UsersRound size={23}/><span><strong>Presenças</strong><small>{dados.jogadores.length?`${resumo.presentes} de ${dados.jogadores.length} com presença`:'Cadastrar os primeiros jogadores'}</small></span><ChevronRight size={20}/></button>

@@ -18,7 +18,7 @@ import { aplicarEquipes, confrontoSugerido, jogoDasEquipes } from './RoundRules'
 import { JOGADORES_POR_TIME, validarDoisTimes } from './TimeRules';
 import { atualizarPartidaDaRodada, encerrarPartida, reabrirPartidaDaRodada } from './ExpressRules';
 import { ConferenciaPartida } from './components/ConferenciaPartida';
-import { ajustarGol, atletaEmUso, podeExcluirAtleta, duplicarJogo, limparPresencasLivres, marcarTodos } from './QuickActions';
+import { ajustarGol, atletaEmUso, podeExcluirAtleta, duplicarJogo, limparPresencasLivres, marcarTodos, ordenarChegadas } from './QuickActions';
 import { excluirRascunhosParaLixeira, restaurarDaLixeira } from './LixeiraRules';
 import { cadastrarJogador, normalizarNomeCadastro } from './CadastroRules';
 import { statusRodada } from './CampoRules';
@@ -67,6 +67,9 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
   const rodadas = [...dados.rodadas].sort((a, b) => b.data.localeCompare(a.data));
   const rodada = rodadas.find(r => r.id === rodadaSelecionada) ?? rodadas[0];
   const progresso = statusRodada(rodada, dados.jogadores);
+  const termoChegada = normalizarBusca(buscaChegada);
+  const chegadasVisiveis = ordenarChegadas(rodada?.presencas ?? [], dados.jogadores)
+    .filter(({ jogador }) => normalizarBusca(jogador.nome).includes(termoChegada));
   useEffect(() => {
     setMarcarChegadaNoCadastro(false);
     setAvisoCadastro('');
@@ -382,10 +385,6 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
       {([['presencas','1. Presentes'],['times','2. Times'],['partidas','3. Partidas']] as [Etapa,string][]).map(([id,titulo]) => <button type="button" key={id} aria-current={etapa===id?'step':undefined} onClick={() => irParaEtapa(id === 'partidas' ? 'confronto' : id)}>{titulo}</button>)}
     </nav>
     {rodada && <p className="ux-active-date"><CalendarDays size={18}/> {dataFormatada(rodada.data)} · {rodada.presencas.length} presentes · {progresso.timesCompletos} times confirmados completos</p>}
-    <div className="ssw-sabado-proximo" hidden={etapa==='times'} aria-label="Próximo passo de Organizar sábado">
-      <div><small>PRÓXIMO PASSO</small><strong>{progresso.passo}</strong><span>{dados.jogadores.length} jogadores cadastrados · {progresso.presentes} presentes · {progresso.timesCompletos} times completos</span></div>
-      <button type="button" onClick={() => irParaEtapa(progresso.destino)}>Continuar <ChevronRight size={20}/></button>
-    </div>
     {!ehSabado(dataDesejada) && <p className="rounds-validation">A data escolhida não é um sábado.</p>}
     {erro && <p className="rounds-validation" role="alert">{erro}</p>}
     {aviso && <p className="rounds-notice" role="status">{aviso}</p>}
@@ -468,16 +467,17 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
           <div className="quick-attendance-actions">
             <button type="button" onClick={marcarTodosNoSabado} disabled={rodada.presencas.length===dados.jogadores.length}><CheckSquare size={18}/> Marcar todos</button>
             <button type="button" onClick={limparLivres} disabled={!rodada.presencas.some(id=>!atletaEmUso(rodada,id))}><X size={18}/> Limpar livres</button>
-          </div><p className="quick-attendance-hint">Atenção: “Marcar todos” adiciona os novos na ordem do cadastro, não na ordem real de chegada.</p><label className="matchday-arrival-search">Buscar jogador para marcar chegada<input type="search" value={buscaChegada} onChange={e=>setBuscaChegada(e.target.value)} placeholder="Nome do jogador, com ou sem acento"/></label><div className="attendance-grid">
-            {dados.jogadores.filter(j=>normalizarBusca(j.nome).includes(normalizarBusca(buscaChegada))).map(j => {
-              const presente = rodada.presencas.includes(j.id);
-              return <button key={j.id} type="button" className={`attendance-button ${presente ? 'attendance-button--present' : ''}`} onClick={() => alternarPresenca(j.id)}>
-                <span>{j.nome}</span>{presente ? <span><Check size={14}/> #{rodada.presencas.indexOf(j.id) + 1}</span> : <Plus size={15}/>}
-              </button>;
-            })}
+          </div><p className="quick-attendance-hint">Atenção: “Marcar todos” adiciona os novos na ordem do cadastro, não na ordem real de chegada.</p><label className="matchday-arrival-search">Buscar jogador para marcar chegada<input type="search" value={buscaChegada} onChange={e=>setBuscaChegada(e.target.value)} placeholder="Nome do jogador"/></label><div className="attendance-grid">
+            {chegadasVisiveis.map(({ jogador, posicao }) => (
+              <button key={jogador.id} type="button" aria-pressed={posicao !== undefined}
+                className={`attendance-button ${posicao === undefined ? '' : 'attendance-button--present'}`}
+                onClick={() => alternarPresenca(jogador.id)}>
+                <span>{jogador.nome}</span>
+                {posicao === undefined ? <Plus size={15} aria-hidden="true"/> : <span><Check size={14} aria-hidden="true"/> #{posicao}</span>}
+              </button>
+            ))}
           </div></>}
-          {buscaChegada && !dados.jogadores.some(j=>normalizarBusca(j.nome).includes(normalizarBusca(buscaChegada))) && <p className="campo-empty" role="status">Nenhum jogador encontrado. Tente outro nome ou limpe a busca.</p>}
-          {!!rodada.presencas.length && <div className="arrival-order"><strong>Ordem de chegada:</strong> {rodada.presencas.map(id => nomePorId.get(id) ?? 'Atleta não localizado').join(' → ')}</div>}
+          {termoChegada && !chegadasVisiveis.length && <p className="campo-empty" role="status">Nenhum jogador encontrado.</p>}
         </>}
       </div>
     </div>
