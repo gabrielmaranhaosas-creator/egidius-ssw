@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, ClipboardList, RefreshCw, Shield, Trophy, UsersRound, LockKeyhole } from 'lucide-react';
+import { CalendarDays, ClipboardList, RefreshCw, Shield, Trophy, UsersRound } from 'lucide-react';
 import './FutebolPublico.css';
 
 export type PlacarPublico = {id:string;numero:number;timeA:string;timeB:string;golsA:number;golsB:number;status:'rascunho'|'encerrada';atletasA:string[];atletasB:string[];goleiroA:string|null;goleiroB:string|null;golsPorAtleta:Record<string,number>};
@@ -13,7 +13,7 @@ function dataSabado(value:string) {
   return new Date(value+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
 }
 
-export function PainelFutebolPublico({dados,entrar,atualizar,carregando=false,erro='',atualizado=''}:{dados:DadosPublicos|null;entrar:()=>void;atualizar:()=>void;carregando?:boolean;erro?:string;atualizado?:string}) {
+export function PainelFutebolPublico({dados,atualizar,carregando=false,erro='',atualizado=''}:{dados:DadosPublicos|null;atualizar:()=>void;carregando?:boolean;erro?:string;atualizado?:string}) {
   const [id,setId]=useState('');
   const [aba,setAba]=useState<'jogos'|'times'|'rankings'>('jogos');
   const [criterio,setCriterio]=useState<Criterio>('pontos');
@@ -23,7 +23,7 @@ export function PainelFutebolPublico({dados,entrar,atualizar,carregando=false,er
   const ranking=ordenarRankingPublico(dados?.rankings??[],criterio);
   const rotulos:Record<Criterio,string>={pontos:'Pontos',gols:'Gols',presencas:'Presenças',jogosGoleiro:'Goleiros'};
   return <div className="futebol-publico">
-    <header className="fp-top"><a href="/" className="fp-brand" aria-label="EGIDIUS início"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><span><strong>EGIDIUS<span>.</span></strong><small>SÁBADO SHOW</small></span></a><button className="fp-login" type="button" onClick={entrar}><LockKeyhole size={18}/>Entrar para organizar</button></header>
+    <header className="fp-top"><a href="/" className="fp-brand" aria-label="EGIDIUS início"><img src="/ssw-escudo-real.jpg" alt="Escudo do Sábado Show"/><span><strong>EGIDIUS<span>.</span></strong><small>SÁBADO SHOW</small></span></a></header>
     <main id="futebol-publico">
       <section className="fp-hero"><p className="fp-kicker">NOSSO FUTEBOL DE TODO SÁBADO</p><h1>O Sábado Show<br/>em campo<span>.</span></h1><p>Confira os times, acompanhe os placares e veja os destaques do grupo.</p><span className="fp-access"><Shield size={16}/>Consulta livre · sem convite</span></section>
       {erro&&<p className="fp-error" role="alert">{erro}{dados?' Os últimos dados carregados continuam abaixo.':''}</p>}
@@ -41,12 +41,11 @@ export function PainelFutebolPublico({dados,entrar,atualizar,carregando=false,er
         {aba==='rankings'&&<><p>Acumulado dos sábados registrados. Vitória: 3 pontos · empate: 1 · derrota: 0. Presenças são contadas por sábado.</p><div className="fp-criteria" role="group" aria-label="Critério do ranking">{(Object.keys(rotulos) as Criterio[]).map(c=><button key={c} type="button" aria-pressed={c===criterio} onClick={()=>setCriterio(c)}>{rotulos[c]}</button>)}</div><ol className="fp-ranking">{ranking.length?ranking.map((p,i)=><li key={p.id}><span className="fp-place">{String(i+1).padStart(2,'0')}</span><div><strong>{p.nome}</strong><small>{criterio==='jogosGoleiro'?`${p.golsSofridos} gol(s) sofridos · jogos encerrados`:`${p.jogos} jogos encerrados · ${p.vitorias} V · ${p.empates} E · ${p.derrotas} D`}</small></div><b>{p[criterio]}<small>{criterio==='jogosGoleiro'?'jogos no gol':rotulos[criterio].toLocaleLowerCase('pt-BR')}</small></b></li>):<p className="fp-empty">Os destaques aparecerão quando houver jogadores cadastrados.</p>}</ol></>}
       </section>
       </>}
-      <aside className="fp-organize"><div><h2>Vai organizar o sábado?</h2><p>Entre com sua conta ou abra o convite recebido para montar os times e registrar as partidas.</p></div><button type="button" onClick={entrar}>Acesso de organização</button></aside>
-    </main><footer className="fp-footer">EGIDIUS · Sábado Show<span>Resultados do futebol abertos para acompanhar. A organização cuida dos registros.</span></footer>
+      </main><footer className="fp-footer">EGIDIUS · Sábado Show<span>Resultados do futebol abertos para acompanhar.</span></footer>
   </div>;
 }
 
-export function FutebolPublico({entrar}:{entrar:()=>void}) {
+export function FutebolPublico() {
   const [dados,setDados]=useState<DadosPublicos|null>(null);
   const [erro,setErro]=useState('');
   const [carregando,setCarregando]=useState(true);
@@ -73,5 +72,5 @@ export function FutebolPublico({entrar}:{entrar:()=>void}) {
     window.addEventListener('focus',visible);
     return()=>{window.clearInterval(timer);window.removeEventListener('focus',visible);request.current?.abort();};
   },[]);
-  return <PainelFutebolPublico dados={dados} entrar={entrar} atualizar={()=>void atualizar()} carregando={carregando} erro={erro} atualizado={atualizado}/>;
+  return <PainelFutebolPublico dados={dados} atualizar={()=>void atualizar()} carregando={carregando} erro={erro} atualizado={atualizado}/>;
 }
