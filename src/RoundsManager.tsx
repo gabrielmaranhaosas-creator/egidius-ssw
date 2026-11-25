@@ -439,14 +439,14 @@ export function RoundsManager({ initialRoundId, initialGameId, initialStage, onR
     <div className="eg-data-actions"><span><LockKeyhole size={16}/> Dados mantidos neste navegador como cópia local e enviados à API. Confira o status acima.</span><button type="button" onClick={exportarBackup}><Download size={16}/> Exportar backup JSON</button></div>
 
     </details>
-    {etapa === 'presencas' && <details className="roster-panel arrival-import">
+    <details hidden={etapa !== 'presencas'} className="roster-panel arrival-import">
       <summary>Importar jogadores de planilha <ChevronRight size={20} aria-hidden="true"/></summary>
       <p>Carregue o elenco antes do sábado. Depois, toque nos nomes conforme cada jogador chegar.</p>
       <ElencoImport embutido registrarChegadas={() => {
         document.getElementById('eg-checkin')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         document.querySelector<HTMLInputElement>('.matchday-arrival-search input')?.focus({ preventScroll: true });
       }}/>
-    </details>}
+    </details>
     <div className="roster-section" hidden={etapa!=='presencas'}>
       <details id="eg-cadastro" className="roster-panel ssw-release-disclosure ssw-release-registration">
         <summary><span>Cadastro de jogadores ({dados.jogadores.length})</span><ChevronRight size={20} aria-hidden="true"/></summary>
