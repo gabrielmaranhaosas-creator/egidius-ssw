@@ -77,3 +77,33 @@ test('troca inválida não modifica nenhum time nem aceita jogador ausente',()=>
   assert.throws(()=>trocarJogadores(equipes,presentes.filter(id=>id!==b),a,b),/presença/);
   assert.equal(JSON.stringify(equipes),antes);
 });
+
+test('sábado ativo acompanha a troca e a remoção feitas por outra aba após uma seleção local', () => {
+  const ambiente = criarCarregador();
+  const ativo = ambiente.load('ActiveRound');
+  ativo.guardarSabadoAtivo('primeiro');
+  ambiente.storage.set('egidius.sabado-ativo.v1', 'segundo');
+  const troca = new Event('storage');
+  Object.defineProperty(troca, 'key', { value: 'egidius.sabado-ativo.v1' });
+  ambiente.window.dispatchEvent(troca);
+  assert.equal(ativo.lerSabadoAtivo(), 'segundo');
+  ambiente.storage.delete('egidius.sabado-ativo.v1');
+  const limpeza = new Event('storage');
+  Object.defineProperty(limpeza, 'key', { value: null });
+  ambiente.window.dispatchEvent(limpeza);
+  assert.equal(ativo.lerSabadoAtivo(), '');
+});
+
+test('eventos de outros dados mantêm a seleção e falha de armazenamento usa a memória da sessão', () => {
+  const ambiente = criarCarregador();
+  const ativo = ambiente.load('ActiveRound');
+  ativo.guardarSabadoAtivo('primeiro');
+  ambiente.storage.set('egidius.sabado-ativo.v1', 'segundo');
+  const evento = new Event('storage');
+  Object.defineProperty(evento, 'key', { value: 'egidius.outro-dado' });
+  ambiente.window.dispatchEvent(evento);
+  assert.equal(ativo.lerSabadoAtivo(), 'primeiro');
+  ambiente.window.localStorage.setItem = () => { throw new Error('Storage indisponível'); };
+  ativo.guardarSabadoAtivo('terceiro');
+  assert.equal(ativo.lerSabadoAtivo(), 'terceiro');
+});
