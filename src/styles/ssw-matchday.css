@@ -201,3 +201,23 @@ body{background:var(--md-paper)}
 .shell--matchday .ranking-page .section-top>div{min-width:0}
 .shell--matchday .ranking-page .surface-pill{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 @media(min-width:701px) and (max-width:900px){.shell--matchday .montagem-colunas{grid-template-columns:1fr}.shell--matchday .montagem-direta .multi-team-grid{grid-template-columns:1fr}}
+
+.archive-panel{min-width:0;display:grid;gap:18px;margin-top:18px}
+.archive-upload{display:grid;gap:16px;padding:20px;border:1px solid #ddcfb8;border-radius:12px;background:#faf6ed}
+.archive-upload h3,.archive-picker,.archive-panel button,.archive-file-actions a{display:flex;align-items:center;gap:9px}
+.archive-upload p,.archive-panel p{line-height:1.6;overflow-wrap:anywhere}
+.archive-upload label{display:grid;gap:8px;font-weight:700}
+.archive-upload input:not([type=file]){width:100%;min-width:0;min-height:48px;border:1px solid #d1bda1;border-radius:9px;padding:12px;font:inherit;font-size:16px}
+.archive-picker input{width:100%;min-width:0;font-size:16px}
+.archive-panel button,.archive-file-actions a{min-height:44px;padding:11px 14px;border-radius:9px;border:1px solid #d4bea0;background:#fffaf1;color:#533c27;text-decoration:none;justify-content:center;white-space:normal}
+.archive-panel button:disabled{opacity:.5}
+.archive-panel .archive-send{background:#553221;color:white;font-weight:750}
+.archive-heading,.archive-files>li{display:flex;justify-content:space-between;align-items:center;gap:16px;min-width:0}
+.archive-files{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.archive-files>li{padding:16px;border:1px solid #dfd4c2;border-radius:10px}
+.archive-files>li>div{min-width:0}.archive-files strong,.archive-files p,.archive-selection li{overflow-wrap:anywhere}
+.archive-files small{display:block;margin-top:8px;color:#7a6954}
+.archive-file-actions{display:flex;gap:8px;flex-shrink:0}
+.archive-note{font-size:14px;color:#76644e}
+.history-games-title{margin-top:30px;padding-top:20px;border-top:1px solid #ded3c0}
+@media(max-width:740px){.archive-upload{padding:14px}.archive-files>li{align-items:stretch;flex-direction:column}.archive-file-actions{flex-wrap:wrap}.archive-file-actions>*{flex:1}.archive-heading{flex-wrap:wrap}}

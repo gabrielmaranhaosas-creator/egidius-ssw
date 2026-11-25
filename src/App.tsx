@@ -8,6 +8,7 @@ import type { ElementType, ReactNode } from 'react';
 import { RoundsManager } from './RoundsManager';
 const AthletesPage=lazy(()=>import('./AthletesPage').then(module=>({default:module.AthletesPage})));
 const MediaPage=lazy(()=>import('./MediaPage').then(module=>({default:module.MediaPage})));
+const ArchivePanel=lazy(()=>import('./ArchivePanel').then(module=>({default:module.ArchivePanel})));
 const AlbumPage=lazy(()=>import('./AlbumPage').then(module=>({default:module.AlbumPage})));
 const ImportPage=lazy(()=>import('./ImportPage').then(module=>({default:module.ImportPage})));
 const ViagemPage=lazy(()=>import('./ViagemPage').then(module=>({default:module.ViagemPage})));
@@ -220,6 +221,8 @@ function App() {
           </section>}
           {historySection === 'arquivo' && <section className="surface history-content">
             <h2>Nosso Arquivo</h2>
+            <ArchivePanel/>
+            <h3 className="history-games-title">Súmulas encerradas</h3>
             {!dados.rodadas.some(r => r.jogos.some(j => j.status === 'encerrada')) &&
               <p>Nenhuma partida encerrada no arquivo.</p>}
             {[...dados.rodadas].filter(r => r.jogos.some(j => j.status === 'encerrada'))
