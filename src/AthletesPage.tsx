@@ -1,9 +1,10 @@
+import { ElencoImport } from './ElencoImport';
 import { usePapel } from './Permissoes';
 import { normalizarBusca } from './Busca';
 import { podeAbandonarEdicao, useTrabalhoPendente } from './TrabalhoPendente';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, BookOpenText, Camera, Check, CircleHelp, Download, Filter, Images, Plus, RefreshCw, Save, Search, ShieldCheck, Trophy, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpenText, Camera, Check, CircleHelp, Download, FileUp, Filter, Images, Plus, RefreshCw, Save, Search, ShieldCheck, Trophy, UserRound } from 'lucide-react';
 import { classificar, useDadosSSW } from './SSWStore';
 import { getCsrf, listMedia, mediaUrl, removeMedia, uploadMedia } from './mediaClient';
 import type { MediaItem } from './mediaClient';
@@ -133,6 +134,11 @@ export function AthletesPage({ abrirCadastro }: { abrirCadastro: () => void }){
   }
   return <section className="athletes-screen">
     <div className="athletes-heading"><div><span className="athletes-eyebrow">ELENCO OFICIAL · SÁBADO SHOW</span><h1>Nosso elenco<span>.</span></h1><p>Perfis, história e as futuras figurinhas dos atletas. Dados esportivos calculados pelas súmulas.</p></div><span className="athletes-count"><UserRound size={20}/>{dados.jogadores.length} atletas</span></div>
+    {!consulta && <details className="athletes-import" hidden={!!selectedId}>
+      <summary><FileUp size={22} aria-hidden="true"/> Importar jogadores de planilha</summary>
+      <p>Cadastre o elenco aqui. Os jogadores ficarão disponíveis em Organizar → Presentes para registrar as chegadas de cada sábado.</p>
+      <ElencoImport embutido/>
+    </details>}
     {error && <div className="athletes-warning" role="alert">{error}</div>}
     {notice && <div className="athletes-notice" role="status"><Check size={19}/>{notice}</div>}
     {selectedId && athlete ? <>
