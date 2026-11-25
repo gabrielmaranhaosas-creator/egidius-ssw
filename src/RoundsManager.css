@@ -198,3 +198,10 @@
 
 .quick-attendance-hint{font-size:12px;color:#845d38;background:#fff5e4;border-radius:8px;padding:9px 11px;margin:0 0 12px;line-height:1.5}
 @media(max-width:740px){.quick-attendance-hint{font-size:14px}}
+
+.arrival-import { margin: 16px 0; }
+.arrival-import > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; font-weight: 700; }
+.arrival-import .import-page { padding: 0; min-width: 0; }
+.arrival-import .import-panel { min-width: 0; }
+.arrival-import .import-file span { overflow-wrap: anywhere; }
+#eg-checkin { scroll-margin-top: 100px; }
