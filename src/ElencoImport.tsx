@@ -7,7 +7,7 @@ import './ImportPage.css';
 type Row = {row:number; nome:string; status:'novo'|'existente'|'repetido'|'erro'; error:string|null};
 type Preview = {revision:number; columns:string[]; name_column:string|null; rows:Row[]};
 
-export function ElencoImport({ embutido = false, registrarChegadas }: { embutido?: boolean; registrarChegadas?: () => void } = {}){
+export function ElencoImport({ embutido = false }: { embutido?: boolean } = {}){
   const [file,setFile]=useState<File|null>(null);
   const [text,setText]=useState('');
   const [preview,setPreview]=useState<Preview|null>(null);
@@ -50,7 +50,7 @@ export function ElencoImport({ embutido = false, registrarChegadas }: { embutido
         body:JSON.stringify({expected_revision:preview.revision,confirm:true,names:chosen.map(r=>names[r.row])})});
       if(!response.ok)throw new Error(await apiError(response));
       const result=await response.json() as {created:number};
-      setDone(true);setMessage(`${result.created} jogador(es) cadastrado(s). As presenças continuam como estavam. Marque cada chegada na lista de presenças para registrar a sequência do sábado.`);
+      setDone(true);setMessage(`${result.created} jogador(es) cadastrado(s). As presenças continuam como estavam. Os jogadores estão disponíveis em Organizar → Presentes. Toque nos nomes conforme chegarem para registrar a sequência do sábado.`);
       window.dispatchEvent(new Event('focus'));
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
@@ -64,7 +64,7 @@ export function ElencoImport({ embutido = false, registrarChegadas }: { embutido
       <button className="import-submit" type="button" disabled={busy||(!file&&!text.trim())} onClick={()=>void load()}>{busy?'Lendo…':'Gerar prévia do elenco'}</button>
     </section>
     {error&&<div className="import-error" role="alert">{error}</div>}
-    {message&&<div className="import-success" role="status">{message}{registrarChegadas && <button className="import-submit" type="button" onClick={registrarChegadas}>Registrar chegadas</button>}</div>}
+    {message&&<div className="import-success" role="status">{message}</div>}
     {preview&&<section className="import-panel"><h2>2. Conferir a seleção</h2>
       <label className="import-target">Coluna dos nomes<select aria-label="Coluna dos nomes" value={column} disabled={busy||done} onChange={e=>void load(e.target.value)}><option value="">Escolha uma coluna</option>{preview.columns.map(c=><option key={c} value={c}>{c}</option>)}</select></label>
       <p>{preview.rows.length} registros na prévia · {chosen.length} selecionados. Nomes já cadastrados ou repetidos não serão criados novamente. Nomes com e sem acento continuam distintos.</p>
