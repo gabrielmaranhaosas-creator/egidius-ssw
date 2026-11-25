@@ -5,6 +5,7 @@ import json
 import os
 import secrets
 import uuid
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -56,6 +57,70 @@ def sniff_mime(first: bytes) -> tuple[str, str] | None:
     return None
 
 
+
+def archive_format(path: Path, filename: str, first: bytes) -> tuple[str, str]:
+    extension = Path(filename).suffix.lower()
+    detected = sniff_mime(first)
+    if detected and detected[0] in ('application/pdf', 'image/jpeg', 'image/png', 'image/webp'):
+        expected = {'.jpeg': '.jpg'}.get(extension, extension)
+        if expected != detected[1]:
+            raise HTTPException(415, 'A extensão não corresponde ao conteúdo do arquivo.')
+        return detected
+    office = {'.xlsx': ('xl/workbook.xml', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+              '.docx': ('word/document.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+              '.pptx': ('ppt/presentation.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presentation')}
+    odf = {'.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+           '.odt': 'application/vnd.oasis.opendocument.text',
+           '.odp': 'application/vnd.oasis.opendocument.presentation'}
+    if extension in office or extension in odf:
+        try:
+            with zipfile.ZipFile(path) as archive:
+                entries = archive.infolist()
+                if len(entries) > 3000 or sum(e.file_size for e in entries) > 100 * 1024 * 1024:
+                    raise HTTPException(413, 'Documento compactado excessivamente grande.')
+                if extension in office:
+                    member, _ = office[extension]
+                    mime = 'application/octet-stream'
+                    if member not in archive.namelist() or '[Content_Types].xml' not in archive.namelist():
+                        raise ValueError()
+                else:
+                    mime = odf[extension]
+                    info = archive.getinfo('mimetype')
+                    if info.file_size > 150 or archive.read(info).decode('ascii').strip() != mime:
+                        raise ValueError()
+                if archive.testzip() is not None:
+                    raise ValueError()
+                return mime, extension
+        except HTTPException:
+            raise
+        except (ValueError, KeyError, OSError, zipfile.BadZipFile, RuntimeError, UnicodeError, NotImplementedError):
+            raise HTTPException(422, 'O documento está danificado ou não corresponde ao formato informado.')
+    legacy = {'.xls': 'application/vnd.ms-excel', '.doc': 'application/msword', '.ppt': 'application/vnd.ms-powerpoint'}
+    if extension in legacy and first.startswith(bytes.fromhex('d0cf11e0a1b11ae1')):
+        return legacy[extension], extension
+    text = {'.csv': 'text/csv', '.tsv': 'text/tab-separated-values', '.txt': 'text/plain',
+            '.json': 'application/json', '.rtf': 'application/rtf'}
+    if extension in text:
+        try:
+            raw = path.read_bytes()
+            try:
+                content = raw.decode('utf-8-sig')
+            except UnicodeError:
+                if extension == '.json':
+                    raise
+                content = raw.decode('cp1252')
+            if '\x00' in content:
+                raise ValueError()
+            if extension == '.json':
+                json.loads(content)
+            if extension == '.rtf' and not content.startswith('{\\rtf'):
+                raise ValueError()
+            return text[extension], extension
+        except (ValueError, UnicodeError, RecursionError):
+            raise HTTPException(422, 'Envie texto UTF-8 ou Windows-1252 válido; JSON deve estar em UTF-8 e ter conteúdo válido.')
+    raise HTTPException(415, 'Formato não suportado no arquivo histórico. Use planilhas, documentos, PDF, JPG, PNG ou WebP.')
+
+
 def serialize(row: MediaAsset) -> dict:
     return {
         'id': row.id, 'scope': row.scope, 'kind': row.kind, 'athlete_id': row.athlete_id,
@@ -103,14 +168,18 @@ def media_router(session_auth, check_csrf, get_db):
                 raise HTTPException(404, 'Rodada inexistente.')
             if match_id and not any(j['id'] == match_id for j in rodada['jogos']):
                 raise HTTPException(404, 'A partida não pertence à rodada selecionada.')
+        elif scope == 'archive':
+            if kind != 'document' or athlete_id or round_id or match_id:
+                raise HTTPException(422, 'O arquivo histórico é independente de atletas, sábados e partidas.')
         else:
             raise HTTPException(422, 'Categoria inválida.')
 
     @router.get('')
-    def list_media(scope: Literal['all', 'athlete', 'round'] = 'all',
+    def list_media(scope: Literal['all', 'athlete', 'round', 'archive'] = 'all',
                    athlete_id: str | None = Query(None, max_length=140),
                    round_id: str | None = Query(None, max_length=140),
                    match_id: str | None = Query(None, max_length=140),
+                   offset: int = Query(0, ge=0), limit: int = Query(300, ge=1, le=300),
                    _session=Depends(session_auth), db: DbSession = Depends(get_db)):
         query = select(MediaAsset).where(~MediaAsset.id.in_(select(MediaTrash.media_id)))
         if scope == 'athlete':
@@ -123,13 +192,15 @@ def media_router(session_auth, check_csrf, get_db):
             query = query.where(MediaAsset.scope == 'round', MediaAsset.round_id == round_id)
             if match_id:
                 query = query.where(MediaAsset.match_id == match_id)
-        query = query.order_by(desc(MediaAsset.created_at), desc(MediaAsset.id)).limit(300)
+        elif scope == 'archive':
+            query = query.where(MediaAsset.scope == 'archive')
+        query = query.order_by(desc(MediaAsset.created_at), desc(MediaAsset.id)).offset(offset).limit(limit)
         items = db.scalars(query).all()
-        return JSONResponse({'items': [serialize(r) for r in items], 'limit': 300}, headers={'Cache-Control': 'no-store'})
+        return JSONResponse({'items': [serialize(r) for r in items], 'limit': limit}, headers={'Cache-Control': 'no-store'})
 
     @router.post('/upload', status_code=201)
     async def upload(request: Request,
-                     scope: Literal['athlete', 'round'],
+                     scope: Literal['athlete', 'round', 'archive'],
                      kind: Literal['photo', 'caricature', 'video', 'document'],
                      athlete_id: str | None = Query(None, max_length=140),
                      round_id: str | None = Query(None, max_length=140),
@@ -163,13 +234,13 @@ def media_router(session_auth, check_csrf, get_db):
                     output.write(chunk)
             if total == 0:
                 raise HTTPException(422, 'Arquivo vazio.')
-            detected = sniff_mime(bytes(first))
+            detected = archive_format(tmp_path, source_name, bytes(first)) if scope == 'archive' else sniff_mime(bytes(first))
             if not detected:
                 raise HTTPException(415, 'Formato incompatível. Use JPG, PNG, WebP, MP4, MOV, WebM ou PDF.')
             mime, extension = detected
-            if (kind == 'video') != mime.startswith('video/') or (kind == 'document') != (mime == 'application/pdf'):
+            if scope != 'archive' and ((kind == 'video') != mime.startswith('video/') or (kind == 'document') != (mime == 'application/pdf')):
                 raise HTTPException(415, 'Tipo de arquivo não corresponde à categoria escolhida.')
-            if kind == 'document':
+            if mime == 'application/pdf':
                 try:
                     from pypdf import PdfReader
                     with tmp_path.open('rb') as document:
