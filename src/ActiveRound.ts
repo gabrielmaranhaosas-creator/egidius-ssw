@@ -2,6 +2,13 @@ import { useSyncExternalStore } from 'react';
 import type { Rodada } from './SSWStore';
 const KEY = 'egidius.sabado-ativo.v1';
 let memoria:string|null=null;
+// Outra aba pode trocar o sábado compartilhado ou limpar o armazenamento.
+if (typeof window !== 'undefined') window.addEventListener('storage', event => {
+  if (event.key === KEY || event.key === null) {
+    memoria = null;
+    window.dispatchEvent(new Event('egidius:sabado-ativo'));
+  }
+});
 export function lerSabadoAtivo(): string {
   if(memoria!==null)return memoria;
   try { return window.localStorage.getItem(KEY) ?? ''; } catch { return ''; }
