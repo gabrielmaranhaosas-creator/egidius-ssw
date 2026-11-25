@@ -9,7 +9,7 @@ import { captionMedia, getCsrf, listMedia, mediaIsImage, mediaSize, removeMedia,
 import type { MediaItem } from './mediaClient';
 import './MediaPage.css';
 
-export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
+export function MediaPage({documentsOnly=false,memoriesOnly=false}:{documentsOnly?:boolean;memoriesOnly?:boolean}){
   const dados=useDadosSSW();
   const rounds=useMemo(()=>[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)),[dados.rodadas]);
   const roundId=useSabadoAtivo(rounds);
@@ -33,7 +33,7 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   async function reload(){
     const serial=++loading.current;
     if(!roundId){setItems([]);return;}
-    try{setError('');const result=await listMedia({scope:'round',round_id:roundId});if(serial===loading.current)setItems(documentsOnly?result.filter(i=>i.kind==='document'):result);}
+    try{setError('');const result=await listMedia({scope:'round',round_id:roundId});if(serial===loading.current)setItems(documentsOnly?result.filter(i=>i.kind==='document'):memoriesOnly?result.filter(i=>i.kind==='photo'||i.kind==='video'):result);}
     catch(e){if(serial===loading.current)setError((e as Error).message);}
   }
   useEffect(()=>{void reload();},[roundId]);
@@ -94,11 +94,11 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
   const toggle=(id:string)=>setSelected(p=>p.includes(id)?p.filter(v=>v!==id):[...p,id]);
   const chooseAll=()=>setSelected(selectedCount===items.length?[]:items.map(x=>x.id));
   return <section className="media-page">
-    <header className="media-banner">
+    {!memoriesOnly && <header className="media-banner">
       <div><p className="media-kicker">MEMÓRIA AUDIOVISUAL · SÁBADO SHOW</p><h1>{documentsOnly?'Documentos PDF':'Central de mídia'}<span>.</span></h1><p>{documentsOnly?'Guarde os documentos do grupo por sábado e faça o download quando precisar.':'Fotos, vídeos e PDFs de cada sábado, organizados por partida.'}</p></div>
       <div className="media-banner-icon"><Images size={52}/></div>
-    </header>
-    <div className="media-status-row"><span><Camera size={20}/>{items.filter(i=>i.kind==='photo').length} fotos</span><span><Film size={20}/>{items.filter(i=>i.kind==='video').length} vídeos</span><span><FileText size={20}/>{items.filter(i=>i.kind==='document').length} PDFs</span><span><Save size={20}/>Arquivos salvos no servidor</span></div>
+    </header>}
+    <div className="media-status-row"><span><Camera size={20}/>{items.filter(i=>i.kind==='photo').length} fotos</span><span><Film size={20}/>{items.filter(i=>i.kind==='video').length} vídeos</span>{!memoriesOnly&&<span><FileText size={20}/>{items.filter(i=>i.kind==='document').length} PDFs</span>}<span><Save size={20}/>Arquivos salvos no servidor</span></div>
     {error&&<p className="media-alert media-alert--error" role="alert">{error}</p>}
     {message&&<p className="media-alert" role="status">{message}</p>}
     <section className="media-panel">
@@ -107,7 +107,7 @@ export function MediaPage({documentsOnly=false}:{documentsOnly?:boolean}){
         <div className="media-input-grid">
           <label>Sábado<select value={roundId} onChange={e=>setRoundId(e.target.value)} disabled={busy}>{rounds.map(r=><option key={r.id} value={r.id}>{dataFormatada(r.data)}</option>)}</select></label>
           <label>Partida<select value={matchId} onChange={e=>setMatchId(e.target.value)} disabled={busy}><option value="">Galeria geral do sábado</option>{currentRound?.jogos.map(j=><option key={j.id} value={j.id}>Jogo {j.numero} · {j.timeA} × {j.timeB}</option>)}</select></label>
-          <label>Tipo de mídia<select value={kind} onChange={e=>{setKind(e.target.value as 'photo'|'video'|'document');setFiles([]);if(picker.current)picker.current.value='';}} disabled={busy}>{!documentsOnly&&<><option value="photo">Fotografias</option><option value="video">Vídeos</option></>}<option value="document">Documentos PDF</option></select></label>
+          <label>Tipo de mídia<select value={kind} onChange={e=>{setKind(e.target.value as 'photo'|'video'|'document');setFiles([]);if(picker.current)picker.current.value='';}} disabled={busy}>{!documentsOnly&&<><option value="photo">Fotografias</option><option value="video">Vídeos</option></>}{!memoriesOnly&&<option value="document">Documentos PDF</option>}</select></label>
           <label>Legenda opcional<input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={250} placeholder="Ex.: jogo histórico, sábado animado" disabled={busy}/></label>
         </div>
         <label className="media-file-zone"><ImagePlus size={26}/><span><strong>Escolher {kind==='video'?'vídeos':kind==='document'?'PDFs':'fotografias'}</strong><small>{kind==='video'?'MP4, MOV ou WebM · até 100 MB cada':kind==='document'?'PDF sem senha · até 20 MB e 300 páginas':'JPG, PNG ou WebP · até 12 MB cada'} · até 12 de cada vez</small></span><input ref={picker} type="file" multiple accept={kind==='video'?'.mp4,.mov,.webm,video/mp4,video/quicktime,video/webm':kind==='document'?'.pdf,application/pdf':'.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'} onChange={updateFiles} disabled={busy}/></label>
