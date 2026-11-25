@@ -19,8 +19,8 @@ import './styles/ssw-fluxo-sabado.css';
 import './RoundsManager.css';
 import './styles/ssw-lancamento-09f2.css';
 import {
-  ArrowRight, ArrowUpRight, CalendarDays, ChevronRight, CircleDot,
-  Crown, Flame, Home, Medal, Shield, Target, Trophy, UsersRound,
+  ArrowRight, ArrowUpRight, ChevronRight, CircleDot,
+  Flame, Home, Medal, Shield, Target, Trophy, UsersRound,
   BookOpen, ClipboardList, Images, Menu, X, FileUp, ArrowUp, BusFront,
 } from 'lucide-react';
 
@@ -92,6 +92,7 @@ function App() {
     window.addEventListener('resize',redimensionar);
     return () => { window.cancelAnimationFrame(frame); window.removeEventListener('keydown',tecla); window.removeEventListener('resize',redimensionar); };
   }, [moreOpen]);
+  const [historySection, setHistorySection] = useState<'historia'|'arquivo'|'memorias'>('historia');
   const [rankingMode, setRankingMode] = useState<RankingMode>('pontos');
   const dados = useDadosSSW();
   const sabadoAtivo = escolherSabadoAtivo(dados.rodadas, campoRoundId);
@@ -205,14 +206,40 @@ function App() {
         </>}
         {screen === 'historia' && <>
           <div className="inner-hero inner-hero--history"><div><p className="eyebrow eyebrow--light">A MEMÓRIA DO SSW</p><h1>Nossa história<span>.</span></h1><p>Um espaço para guardar o que acontece dentro e fora das quatro linhas.</p></div><div className="inner-icon"><BookOpen size={53}/></div></div>
-          <div className="stories">
-            <article className="story-card story-card--feature"><span className="story-icon"><Crown size={30}/></span><p className="eyebrow">REGISTROS DO GRUPO</p><h2>{resumo.encerradas} partidas<br/>encerradas.</h2><p>{resumo.gols} gols registrados nas súmulas encerradas. Os destaques são calculados a partir dos resultados do grupo.</p><button className="text-action" type="button" onClick={()=>navigate('rankings')}>Consultar rankings <ArrowUpRight size={17}/></button></article>
-            {[...dados.rodadas].sort((a,b)=>b.data.localeCompare(a.data)).map(rodada=>{
-              const jogos=rodada.jogos.filter(j=>j.status==='encerrada');
-              return <article className="story-card" key={rodada.id}><span className="story-icon"><CalendarDays size={29}/></span><p className="eyebrow">SÁBADO SHOW</p><h2>{dataFormatada(rodada.data)}</h2><p>{rodada.presencas.length} presenças · {jogos.length} partidas encerradas · {jogos.reduce((sum,j)=>sum+j.golsA+j.golsB,0)} gols.</p><button type="button" className="text-action" onClick={()=>abrirRodada('partidas',rodada.id)}>Consultar este sábado <ArrowUpRight size={17}/></button></article>;
-            })}
-            {!dados.rodadas.length&&<article className="story-card"><p className="eyebrow">COMEÇAR A HISTÓRIA</p><h2>Os registros<br/>começam aqui.</h2><p>O histórico será preenchido pelos sábados e partidas do SSW.</p><button type="button" className="text-action" onClick={()=>navigate('rodada')}>Organizar sábado <ArrowUpRight size={17}/></button></article>}
-          </div>
+          <nav className="history-sections" aria-label="Seções de Nossa história">
+            {([['historia', 'História do Sábado Show', BookOpen], ['arquivo', 'Nosso Arquivo', ClipboardList], ['memorias', 'Memórias', Images]] as const).map(([id, label, Icon]) =>
+              <button key={id} type="button" aria-current={historySection === id ? 'page' : undefined}
+                onClick={() => { if (historySection !== id && podeAbandonarEdicao()) setHistorySection(id); }}>
+                <Icon size={21} aria-hidden="true"/>{label}
+              </button>)}
+          </nav>
+          {historySection === 'historia' && <section className="surface history-content">
+            <h2>História do Sábado Show</h2>
+            <p>Um espaço reservado para contar a trajetória do Sábado Show.</p>
+            <p>Os textos e os registros históricos serão acrescentados aqui.</p>
+          </section>}
+          {historySection === 'arquivo' && <section className="surface history-content">
+            <h2>Nosso Arquivo</h2>
+            {!dados.rodadas.some(r => r.jogos.some(j => j.status === 'encerrada')) &&
+              <p>Nenhuma partida encerrada no arquivo.</p>}
+            {[...dados.rodadas].filter(r => r.jogos.some(j => j.status === 'encerrada'))
+              .sort((a,b) => b.data.localeCompare(a.data)).map(rodada =>
+                <details className="history-round" key={rodada.id}>
+                  <summary>{dataFormatada(rodada.data)}</summary>
+                  {rodada.jogos.filter(j => j.status === 'encerrada').map(jogo =>
+                    <button className="history-match" key={jogo.id} type="button"
+                      onClick={() => abrirRodada('partidas', rodada.id, jogo.id)}>
+                      <span>Jogo {jogo.numero} · {jogo.timeA} × {jogo.timeB}</span>
+                      <strong>{jogo.golsA} × {jogo.golsB}</strong>
+                      <span>Ver súmula <ArrowUpRight size={17}/></span>
+                    </button>)}
+                </details>)}
+          </section>}
+          {historySection === 'memorias' && <section className="history-content">
+            <h2>Memórias</h2>
+            <p>Fotos e vídeos dos sábados, organizados por data.</p>
+            <MediaPage memoriesOnly/>
+          </section>}
         </>}
       </ConteudoComFoco></Suspense></RecuperarTela></div>
       <footer className="ssw-new-footer" aria-label="Rodapé do Sábado Show">
