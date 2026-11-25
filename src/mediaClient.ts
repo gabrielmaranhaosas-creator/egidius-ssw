@@ -1,5 +1,5 @@
 export type MediaItem = {
-  id:string; scope:'athlete'|'round'; kind:'photo'|'caricature'|'video'|'document';
+  id:string; scope:'athlete'|'round'|'archive'; kind:'photo'|'caricature'|'video'|'document';
   athlete_id:string|null; round_id:string|null; match_id:string|null;
   filename:string;caption:string;mime_type:string;size:number;url:string;created_at:string|null;
 };
@@ -14,16 +14,16 @@ export async function getCsrf(){
   if(!a.authenticated||!a.csrf)throw new Error('Sessão expirada. Entre novamente no EGIDIUS.');
   return a.csrf;
 }
-export async function listMedia(params:{scope?:'all'|'round'|'athlete';athlete_id?:string;round_id?:string;match_id?:string}){
+export async function listMedia(params:{scope?:'all'|'round'|'athlete'|'archive';athlete_id?:string;round_id?:string;match_id?:string;offset?:number;limit?:number}){
   const search=new URLSearchParams();
-  Object.entries(params).forEach(([key,val])=>{if(val)search.set(key,val);});
+  Object.entries(params).forEach(([key,val])=>{if(val)search.set(key,String(val));});
   const r=await fetch(`/api/media?${search}`,{credentials:'same-origin',cache:'no-store'});
   if(!r.ok)throw new Error(await apiError(r));
   return (await r.json() as {items:MediaItem[]}).items;
 }
-export async function uploadMedia(file:File,params:{scope:'athlete'|'round';kind:'photo'|'caricature'|'video'|'document';athlete_id?:string;round_id?:string;match_id?:string;caption?:string},csrf:string){
+export async function uploadMedia(file:File,params:{scope:'athlete'|'round'|'archive';kind:'photo'|'caricature'|'video'|'document';athlete_id?:string;round_id?:string;match_id?:string;caption?:string},csrf:string){
   const search=new URLSearchParams();
-  Object.entries(params).forEach(([key,val])=>{if(val)search.set(key,val);});
+  Object.entries(params).forEach(([key,val])=>{if(val)search.set(key,String(val));});
   const r=await fetch(`/api/media/upload?${search.toString()}`,{
     method:'POST',body:file,credentials:'same-origin',
     headers:{'X-CSRF-Token':csrf,'X-Egidius-Filename':encodeURIComponent(file.name),'Content-Type':'application/octet-stream'},
