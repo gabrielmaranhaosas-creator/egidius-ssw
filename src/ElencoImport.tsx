@@ -2,11 +2,12 @@ import { useTrabalhoPendente } from './TrabalhoPendente';
 import { useMemo, useState } from 'react';
 import { Download, FileUp, UsersRound } from 'lucide-react';
 import { apiError, getCsrf } from './mediaClient';
+import './ImportPage.css';
 
 type Row = {row:number; nome:string; status:'novo'|'existente'|'repetido'|'erro'; error:string|null};
 type Preview = {revision:number; columns:string[]; name_column:string|null; rows:Row[]};
 
-export function ElencoImport(){
+export function ElencoImport({ embutido = false, registrarChegadas }: { embutido?: boolean; registrarChegadas?: () => void } = {}){
   const [file,setFile]=useState<File|null>(null);
   const [text,setText]=useState('');
   const [preview,setPreview]=useState<Preview|null>(null);
@@ -49,21 +50,21 @@ export function ElencoImport(){
         body:JSON.stringify({expected_revision:preview.revision,confirm:true,names:chosen.map(r=>names[r.row])})});
       if(!response.ok)throw new Error(await apiError(response));
       const result=await response.json() as {created:number};
-      setDone(true);setMessage(`${result.created} jogador(es) cadastrado(s). As presenças continuam como estavam. Abra Jogadores para consultar o elenco.`);
+      setDone(true);setMessage(`${result.created} jogador(es) cadastrado(s). As presenças continuam como estavam. Marque cada chegada na lista de presenças para registrar a sequência do sábado.`);
       window.dispatchEvent(new Event('focus'));
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
   return <section className="import-page">
-    <div className="import-hero"><p>GESTÃO DO SSW</p><h1>Importar elenco<span>.</span></h1><div>Traga os nomes de uma planilha ou tabela. Confira a prévia e escolha o que cadastrar.</div></div>
+    {!embutido && <div className="import-hero"><p>GESTÃO DO SSW</p><h1>Importar elenco<span>.</span></h1><div>Traga os nomes de uma planilha ou tabela. Confira a prévia e escolha o que cadastrar.</div></div>}
     <section className="import-panel"><h2>1. Preparar os nomes</h2>
-      <p>CSV, XLSX e JSON, até 3 MB e 300 jogadores por lote. Para XLSX, use a aba ativa da planilha. A primeira linha da tabela deve conter os títulos das colunas.</p>
+      <p>Excel (XLSX), CSV, TSV, TXT e JSON, até 3 MB e 300 jogadores por lote. Para XLSX, use a aba ativa da planilha. A primeira linha da tabela deve conter os títulos das colunas.</p>
       <div className="import-actions"><a className="ssw-download-link" href="/api/intake/template?format=xlsx" download><Download size={18}/> Modelo Excel</a><a className="ssw-download-link" href="/api/intake/template?format=csv" download><Download size={18}/> Modelo CSV</a></div>
-      <label className="import-file"><FileUp size={23}/><span>{file?file.name:'Selecionar planilha ou JSON'}</span><input aria-label="Arquivo do elenco" type="file" accept=".csv,.xlsx,.json,.tsv,.txt" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f){setFile(f);setText('');reset();}e.target.value='';}}/></label>
+      <label className="import-file"><FileUp size={23}/><span>{file?file.name:'Selecionar arquivo de jogadores'}</span><input aria-label="Arquivo do elenco" type="file" accept=".csv,.xlsx,.json,.tsv,.txt" disabled={busy} onChange={e=>{const f=e.target.files?.[0];if(f){setFile(f);setText('');reset();}e.target.value='';}}/></label>
       <label className="ssw-table-paste">Ou cole uma tabela do Excel, Google Sheets ou uma lista de nomes<textarea aria-label="Tabela ou lista de jogadores" rows={6} value={text} disabled={busy} placeholder="Uma lista simples também pode ter um nome por linha." onChange={e=>{setText(e.target.value);setFile(null);reset();}}/></label>
       <button className="import-submit" type="button" disabled={busy||(!file&&!text.trim())} onClick={()=>void load()}>{busy?'Lendo…':'Gerar prévia do elenco'}</button>
     </section>
     {error&&<div className="import-error" role="alert">{error}</div>}
-    {message&&<div className="import-success" role="status">{message}</div>}
+    {message&&<div className="import-success" role="status">{message}{registrarChegadas && <button className="import-submit" type="button" onClick={registrarChegadas}>Registrar chegadas</button>}</div>}
     {preview&&<section className="import-panel"><h2>2. Conferir a seleção</h2>
       <label className="import-target">Coluna dos nomes<select aria-label="Coluna dos nomes" value={column} disabled={busy||done} onChange={e=>void load(e.target.value)}><option value="">Escolha uma coluna</option>{preview.columns.map(c=><option key={c} value={c}>{c}</option>)}</select></label>
       <p>{preview.rows.length} registros na prévia · {chosen.length} selecionados. Nomes já cadastrados ou repetidos não serão criados novamente. Nomes com e sem acento continuam distintos.</p>
