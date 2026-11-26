@@ -50,14 +50,13 @@ test('convite com falha permite nova tentativa sem apagar o endereço', async ()
   assert.equal(limpo, true);
 });
 
-test('endereço externo sem sessão sinaliza consulta pública e nunca tenta entrada local', async () => {
-  for (const url of ['https://exemplo.test/', 'http://127.0.0.1:8080/', 'http://192.168.1.2:5173/']) {
-    const calls = [];
-    const entrar = criarAcessoSemSenha(async path => {calls.push(path); return {authenticated: false};},
-      () => new URL(url), () => assert.fail());
-    await assert.rejects(entrar(), error=>error.code==='PUBLIC_ACCESS' && /convite/.test(error.message));
-    assert.deepEqual(calls, ['/auth/status']);
-  }
+test('endereço externo abre o aplicativo diretamente pelo acesso público', async () => {
+  const calls=[];
+  const entrar=criarAcessoSemSenha(async (path,options)=>{calls.push([path,options]);return path==='/auth/status'?{authenticated:false}:{...auth,username:'confrade_ssw',role:'operator'};},
+    ()=>new URL('https://exemplo.test/'),()=>assert.fail());
+  assert.equal((await entrar()).role,'operator');
+  assert.deepEqual(calls.map(c=>c[0]),['/auth/status','/auth/public']);
+  assert.equal(calls[1][1].method,'POST');
 });
 
 test('resposta incompleta não abre a aplicação', async () => {

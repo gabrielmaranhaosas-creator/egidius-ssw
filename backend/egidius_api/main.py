@@ -218,6 +218,44 @@ def create_app(database_url: str | None = None) -> FastAPI:
         response.headers['Cache-Control']='no-store'
         return {'authenticated':True,'role':role_for(db,username),'username':username,'csrf':csrf}
 
+    @app.post('/api/auth/public')
+    def public_entry(request: Request, response: Response, db: DbSession = Depends(get_db)):
+        """Entrada pública nas funções do futebol, habilitada pelo responsável."""
+        if os.getenv('EGIDIUS_PUBLIC_ACCESS', '').lower() != 'true':
+            raise HTTPException(404, 'Acesso público indisponível.')
+        from urllib.parse import urlsplit
+        origin = request.headers.get('origin')
+        if request.headers.get('sec-fetch-site') == 'cross-site':
+            raise HTTPException(403, 'Origem não autorizada.')
+        if origin:
+            parsed = urlsplit(origin)
+            secure = os.getenv('EGIDIUS_SECURE_COOKIES', 'false').lower() == 'true'
+            if parsed.netloc != request.headers.get('host', '') or parsed.scheme != ('https' if secure else request.url.scheme) or parsed.path or parsed.query or parsed.fragment:
+                raise HTTPException(403, 'Origem não autorizada.')
+        try:
+            sess = session_auth(request, db)
+        except HTTPException:
+            username = 'confrade_ssw'
+            if db.get(User, username) is None:
+                db.add(User(username=username, password_hash=hash_password(secrets.token_urlsafe(36))))
+                from sqlalchemy.exc import IntegrityError
+                try:
+                    db.commit()
+                except IntegrityError:
+                    db.rollback()
+                    if db.get(User, username) is None:
+                        raise
+            raw = secrets.token_urlsafe(36)
+            sess = Session(token_hash=token_hash(raw), username=username,
+                           csrf_token=secrets.token_urlsafe(36), expires_at=expires_at())
+            db.add(sess)
+            db.commit()
+            response.set_cookie(COOKIE_NAME, raw, max_age=12*3600, httponly=True,
+                                secure=os.getenv('EGIDIUS_SECURE_COOKIES', 'false').lower() == 'true',
+                                samesite='lax', path='/api')
+        response.headers['Cache-Control'] = 'no-store'
+        return {'authenticated': True, 'role': role_for(db, sess.username), 'username': sess.username, 'csrf': sess.csrf_token}
+
     @app.post('/api/auth/local')
     def local_entry(request: Request, response: Response, db: DbSession = Depends(get_db)):
         """Entrada direta exclusiva do inicializador local; convites externos permanecem separados."""

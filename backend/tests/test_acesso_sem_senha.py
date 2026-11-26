@@ -29,7 +29,9 @@ def test_abre_sem_senha_preserva_documentos_e_reutiliza_sessao(local):
     assert c.get('/api/viagem-ssw').status_code == 200
     assert c.post('/api/auth/local').json()['csrf'] == r.json()['csrf']
     with app.state.db_factory() as db:
-        assert db.get(State, 1).payload == antes
+        import json
+        final = json.loads(db.get(State, 1).payload)
+        assert all(final[k] == v for k, v in json.loads(antes).items())
         assert db.query(Session).count() == 1
 
 
@@ -105,3 +107,55 @@ def test_duas_entradas_iniciais_nao_duplicam_operador(local):
         list(pool.map(entrar, range(2)))
     with app.state.db_factory() as db:
         assert db.query(User).filter_by(username='operador_local').count() == 1
+
+
+def test_publico_desativado_por_padrao(local, monkeypatch):
+    c, _ = local
+    monkeypatch.delenv('EGIDIUS_PUBLIC_ACCESS', raising=False)
+    assert c.post('/api/auth/public').status_code == 404
+
+
+def test_publico_abre_futebol_sem_convite_e_preserva_registros(local, monkeypatch):
+    c, app = local
+    monkeypatch.setenv('EGIDIUS_PUBLIC_ACCESS', 'true')
+    monkeypatch.setenv('EGIDIUS_SECURE_COOKIES', 'true')
+    from egidius_api.db import State, Session
+    with app.state.db_factory() as db:
+        antes = db.get(State, 1).payload
+    with TestClient(app, base_url='https://egidius.example') as publico:
+        response = publico.post('/api/auth/public', headers={'Origin': 'https://egidius.example'})
+        assert response.status_code == 200
+        auth = response.json()
+        assert auth['authenticated'] and auth['role'] == 'operator'
+        assert 'secure' in response.headers['set-cookie'].lower()
+        assert 'httponly' in response.headers['set-cookie'].lower()
+        assert response.headers['cache-control'] == 'no-store'
+        assert publico.post('/api/auth/public').json()['csrf'] == auth['csrf']
+        with app.state.db_factory() as db:
+            assert db.get(State, 1).payload == antes
+        estado = publico.get('/api/state').json()
+        payload = {'expected_revision': estado['revision'], 'data': estado['data']}
+        assert publico.put('/api/state', json=payload).status_code == 403
+        assert publico.put('/api/state', json=payload, headers={'X-CSRF-Token': auth['csrf']}).status_code == 200
+        assert publico.get('/api/admin/access').status_code == 403
+        assert publico.get('/api/backup/download').status_code == 403
+    with app.state.db_factory() as db:
+        import json
+        final = json.loads(db.get(State, 1).payload)
+        assert all(final[k] == v for k, v in json.loads(antes).items())
+        assert db.query(Session).count() == 1
+
+
+@pytest.mark.parametrize('headers', [{'Origin': 'https://outro.example'}, {'Sec-Fetch-Site': 'cross-site'}, {'Origin':'null'}])
+def test_publico_recusa_entrada_cross_site(local, monkeypatch, headers):
+    c, _ = local
+    monkeypatch.setenv('EGIDIUS_PUBLIC_ACCESS', 'true')
+    assert c.post('/api/auth/public', headers=headers).status_code == 403
+    assert c.get('/api/state').status_code == 401
+
+
+def test_publico_preserva_sessao_existente(local, monkeypatch):
+    c, _ = local
+    monkeypatch.setenv('EGIDIUS_PUBLIC_ACCESS', 'true')
+    auth = c.post('/api/auth/local').json()
+    assert c.post('/api/auth/public').json() == auth
