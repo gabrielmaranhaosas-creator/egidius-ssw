@@ -22,9 +22,8 @@ export function criarAcessoSemSenha(api: Api, endereco: () => URL, limparConvite
       if (atual.authenticated && atual.csrf && atual.username) return atual;
       const local = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)
         && ['5173', '8017'].includes(url.port);
-      if (!local) throw Object.assign(new Error('Abra o link de convite recebido para acessar o EGIDIUS.'), {code:'PUBLIC_ACCESS'});
-      const auth = await api<AuthStatus>('/auth/local', {method: 'POST'});
-      if (!auth.authenticated || !auth.csrf || !auth.username) throw new Error('Não foi possível abrir o acesso local.');
+      const auth = await api<AuthStatus>(local ? '/auth/local' : '/auth/public', {method: 'POST'});
+      if (!auth.authenticated || !auth.csrf || !auth.username) throw new Error(local ? 'Não foi possível abrir o acesso local.' : 'Não foi possível abrir o EGIDIUS. Tente novamente.');
       return auth;
     })().finally(() => { pendente = null; });
     return pendente;
