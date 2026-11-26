@@ -64,17 +64,19 @@ async function abrir({publico=false,organizar=false,initialData,initialGeneratio
   function render(){cursor=0;component=module.exports.SyncGate({children:null});
     const next=effectQueue;effectQueue=[];for(const fn of next)fn();return component;}
   render();await flush();render();
-  assert.equal(states[3],publico?'public':'ready');
+  assert.equal(states[3],publico?'offline':'ready');
   return {states,render,remote,setResponder:fn=>{responder=fn;},
     visibility(value){window.document.visibilityState=value;events.get('visibilitychange')?.();},
     poll:()=>poll(),edit(data){local=copy(data);observer();},current:()=>copy(local)};
 }
 
-test('visitante sem sessão recebe consulta pública sem carregar ou gravar o estado privado',async()=>{
+test('visitante sem sessão recebe a entrada normal, sem painel público nem leitura do estado privado',async()=>{
   const app=await abrir({publico:true});
-  assert.equal(app.states[3],'public');
+  assert.equal(app.states[3],'offline');
   assert.deepEqual(app.current(),{versao:5,jogadores:[],rodadas:[]});
-  const page=app.render();assert.equal(typeof page.type,'function');assert.equal(page.props.entrar,undefined);
+  const page=app.render();assert.equal(page.type,'div');
+  assert.match(JSON.stringify(page),/Acesso de organização/);
+  assert.doesNotMatch(JSON.stringify(page),/Consultar futebol sem entrar/);
   const admin=await abrir({publico:true,organizar:true});
   assert.equal(admin.render().props.children.type.name,'EntradaOrganizacao');
 });
